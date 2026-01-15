@@ -1,0 +1,43 @@
+{
+  "case_id": "uti_level1",
+  "level": 1,
+  "display_title": "Painful urination (Beginner)",
+  "patient": {
+    "age": 24,
+    "sex": "female",
+    "personality": "anxious but cooperative",
+    "setting": "urgent care"
+  },
+  "presenting_info": {
+    "chief_complaint": "Burning when urinating",
+    "opening_statement": "It burns when I pee and I’m going more often."
+  },
+  "facts": {
+    "onset": "3 days ago",
+    "associated_symptoms": ["frequency", "urgency"],
+    "denies": ["flank pain", "high fever", "vomiting"],
+    "pregnancy": "not pregnant",
+    "allergies": ["none"],
+    "medications": ["oral contraceptive"]
+  },
+  "hidden_truth": {
+    "primary_diagnosis": "Uncomplicated cystitis (UTI)",
+    "differentials": ["vaginitis", "STI", "interstitial cystitis"],
+    "red_flags": ["fever > 101F", "flank pain", "vomiting", "pregnancy"]
+  },
+  "rubric": {
+    "required_questions": [
+      "symptom onset",
+      "urinary frequency or urgency",
+      "fever or chills",
+      "flank pain",
+      "pregnancy status",
+      "medication allergies"
+    ],
+    "critical_actions": [
+      "consider urinalysis",
+      "initial treatment and return precautions"
+    ],
+    "pass_score": 70
+  }
+}
