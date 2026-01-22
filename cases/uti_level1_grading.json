@@ -1,0 +1,32 @@
+{
+  "case_id": "uti_level1",
+  "grading_version": "1.0",
+
+  "required_history_topics": [
+    "symptom onset and duration",
+    "urinary frequency/urgency",
+    "fever or chills",
+    "flank pain",
+    "nausea or vomiting",
+    "pregnancy status",
+    "medication allergies"
+  ],
+
+  "required_actions": [
+    "consider urinalysis",
+    "ask about pregnancy test if applicable",
+    "provide treatment plan and return precautions"
+  ],
+
+  "critical_fails": [
+    "missed pregnancy status when patient is of childbearing age",
+    "missed signs of possible pyelonephritis (fever + flank pain)"
+  ],
+
+  "scoring": {
+    "history_topic_points": 5,
+    "action_points": 10,
+    "critical_fail_penalty": 30,
+    "passing_score": 70
+  }
+}
