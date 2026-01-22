@@ -2,42 +2,62 @@
   "case_id": "uti_level1",
   "level": 1,
   "display_title": "Painful urination (Beginner)",
-  "patient": {
+  "setting": "urgent care",
+
+  "patient_profile": {
     "age": 24,
     "sex": "female",
-    "personality": "anxious but cooperative",
-    "setting": "urgent care"
+    "communication_style": "anxious but cooperative",
+    "background": "college student"
   },
+
   "presenting_info": {
     "chief_complaint": "Burning when urinating",
-    "opening_statement": "It burns when I pee and I’m going more often."
+    "opening_statement": "It burns when I pee and I’ve been going more often."
   },
-  "facts": {
+
+  "history": {
     "onset": "3 days ago",
-    "associated_symptoms": ["frequency", "urgency"],
-    "denies": ["flank pain", "high fever", "vomiting"],
-    "pregnancy": "not pregnant",
+    "symptoms": {
+      "urinary_frequency": true,
+      "urgency": true,
+      "dysuria": true,
+      "hematuria": false
+    },
+    "pertinent_negatives": [
+      "No flank pain",
+      "No vomiting",
+      "No high fever"
+    ],
+    "pregnancy_status": "not pregnant",
     "allergies": ["none"],
     "medications": ["oral contraceptive"]
   },
+
+  "optional_clinical_data": {
+    "vitals": {
+      "temperature_f": 98.7,
+      "heart_rate": 88,
+      "bp": "118/74"
+    },
+    "available_tests": [
+      "urinalysis",
+      "urine pregnancy test"
+    ]
+  },
+
   "hidden_truth": {
     "primary_diagnosis": "Uncomplicated cystitis (UTI)",
-    "differentials": ["vaginitis", "STI", "interstitial cystitis"],
-    "red_flags": ["fever > 101F", "flank pain", "vomiting", "pregnancy"]
-  },
-  "rubric": {
-    "required_questions": [
-      "symptom onset",
-      "urinary frequency or urgency",
-      "fever or chills",
+    "differentials": [
+      "vaginitis",
+      "STI/urethritis",
+      "interstitial cystitis"
+    ],
+    "red_flags": [
+      "fever > 101F",
       "flank pain",
-      "pregnancy status",
-      "medication allergies"
-    ],
-    "critical_actions": [
-      "consider urinalysis",
-      "initial treatment and return precautions"
-    ],
-    "pass_score": 70
+      "vomiting",
+      "pregnancy"
+    ]
   }
 }
