@@ -6,8 +6,7 @@ if (!BASE_URL) {
   throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
 }
 
-// If your backend routes start with /api, set API_PREFIX="/api"
-const API_PREFIX = ""; // change to "/api" if needed
+const API_PREFIX = "/api";
 
 async function request(path, { method = "GET", body, headers } = {}) {
   const token = await SecureStore.getItemAsync("token");

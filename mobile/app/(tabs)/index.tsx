@@ -1,82 +1,59 @@
-import React, { useState } from "react";
-import { ScrollView, View, Text, Button } from "react-native";
-import * as SecureStore from "expo-secure-store";
+import { View, Image, Text, TouchableOpacity, Platform, ScrollView, KeyboardAvoidingView } from "react-native";
+import { indexStyles } from "../../assets/styles/index.styles";
+import { useRouter } from "expo-router";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
-const API_PREFIX = "/api";
-
-async function request(
-  path: string,
-  opts: { method?: string; body?: any; headers?: Record<string, string> } = {}
-) {
-  if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
-
-  const token = await SecureStore.getItemAsync("token");
-
-  const res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
-    method: opts.method || "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(opts.headers || {}),
-    },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-
-  const text = await res.text();
-  let data: any = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-
-  if (!res.ok) {
-    const msg = data?.error || data?.message || `${res.status} ${res.statusText}`;
-    const err: any = new Error(msg);
-    err.status = res.status;
-    err.data = data;
-    throw err;
-  }
-
-  return data;
-}
-
-export default function HomeScreen() {
-  const [out, setOut] = useState<string>("");
-
-  const run = async (fn: () => Promise<any>) => {
-    try {
-      setOut("Loading...");
-      const data = await fn();
-      setOut(JSON.stringify(data, null, 2));
-    } catch (e: any) {
-      setOut(
-        JSON.stringify(
-          { error: e.message, status: e.status, data: e.data },
-          null,
-          2
-        )
-      );
-    }
-  };
-
+export default function IndexScreen() {
+  const router = useRouter();
+  
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Text style={{ fontSize: 18, fontWeight: "700" }}>API Test</Text>
+    <View style={indexStyles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+        style={indexStyles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={indexStyles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={indexStyles.imageContainer}>
+            <Image
+              source={require("../../assets/images/logo.jpg")}
+              style={indexStyles.image}
+            />
+          </View>
 
-      <Button title="GET /health" onPress={() => run(() => request("/health"))} />
-      <Button title="GET /cases" onPress={() => run(() => request("/cases"))} />
+          <Text style={indexStyles.title}>
+            Welcome to Clinicals
+          </Text>
 
-      <View style={{ padding: 12, borderWidth: 1, borderRadius: 8 }}>
-        <Text selectable style={{ fontFamily: "Menlo" }}>
-          {out || "Tap a button above."}
-        </Text>
-      </View>
+          <Text style={indexStyles.subtitle}>
+            Clinical training, one case at a time!
+          </Text>
 
-      <Text style={{ opacity: 0.6 }}>
-        Base URL: {process.env.EXPO_PUBLIC_API_BASE_URL}
-      </Text>
-    </ScrollView>
+          <View style={indexStyles.formContainer}>
+            <TouchableOpacity
+              style={[indexStyles.startedButton]}
+              activeOpacity={0.8}
+              onPress={() => router.push("/signup")}
+            >
+              <Text style={indexStyles.buttonText}>
+                Get Started
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity 
+            style={indexStyles.linkContainer}
+            activeOpacity={0.8}
+            onPress={() => router.push("/signin")}
+          >
+            <Text style={indexStyles.linkText}>
+              Already have an account? <Text style={indexStyles.link}>Sign In</Text>
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
