@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   View,
   Text,
   Image,
@@ -11,7 +12,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth, useSignIn } from "@clerk/clerk-expo";
-import { useEffect } from "react";
 import { authStyles } from "../../assets/styles/auth.styles";
 
 export default function SigninScreen() {
@@ -28,33 +28,43 @@ export default function SigninScreen() {
     // if already signed in
     useEffect(() => {
         if (!authLoaded) return;
-        if (isSignedIn) router.replace("/cases");
+        if (isSignedIn) router.replace("/(tabs)/cases");
     }, [authLoaded, isSignedIn, router]);
 
     // while Clerk is loading or redirecting
     if (!authLoaded || isSignedIn) {
-        return null;
+        return (
+            <View style={[authStyles.container, { justifyContent: "center", alignItems: "center" }]}>
+                <ActivityIndicator />
+            </View>
+        );
     }
 
     const handleSignIn = async () => {
         if (!signInLoaded || loading) return;
+
+        const trimmedEmail = email.trim();
+        if (!trimmedEmail || !password) {
+            setErrorMsg("Please enter both email and password.");
+            return;
+        }
 
         setErrorMsg("");
         setLoading(true);
 
         try {
         const result = await signIn.create({
-            identifier: email.trim(),
+            identifier: trimmedEmail,
             password,
         });
 
         if (result.status !== "complete") {
-            setErrorMsg("Err.");
+            setErrorMsg("Sign in requires additional verification.");
             return;
         }
 
         await setActive({ session: result.createdSessionId });
-        router.replace("/cases");
+        router.replace("/(tabs)/cases");
         } catch (err: any) {
         const msg =
             err?.errors?.[0]?.longMessage ||
@@ -96,6 +106,9 @@ export default function SigninScreen() {
                         placeholder="Email"
                         autoCapitalize="none"
                         keyboardType="email-address"
+                        autoCorrect={false}
+                        autoComplete="email"
+                        textContentType="emailAddress"
                         style={authStyles.textInput}
                     />
                 </View>
@@ -106,6 +119,10 @@ export default function SigninScreen() {
                         onChangeText={setPassword}
                         placeholder="Password"
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="password"
+                        textContentType="password"
                         style={authStyles.textInput}
                     />
 
@@ -124,10 +141,10 @@ export default function SigninScreen() {
                 <TouchableOpacity
                     style={[
                         authStyles.authButton,
-                        (!signInLoaded || loading) && authStyles.buttonDisabled,
+                        (!signInLoaded || loading || !email.trim() || !password) && authStyles.buttonDisabled,
                     ]}
                     activeOpacity={0.8}
-                    disabled={!signInLoaded || loading}
+                    disabled={!signInLoaded || loading || !email.trim() || !password}
                     onPress={handleSignIn}
                 >
                     <Text style={authStyles.buttonText}>
@@ -138,7 +155,7 @@ export default function SigninScreen() {
                 <TouchableOpacity
                     style={authStyles.linkContainer}
                     activeOpacity={0.8}
-                    onPress={() => router.push("/signup")}
+                    onPress={() => router.push("/(auth)/signup")}
                 >
                     <Text style={authStyles.linkText}>
                     New here? <Text style={authStyles.link}>Create an account</Text>

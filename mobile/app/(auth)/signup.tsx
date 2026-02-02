@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   View,
   Text,
   Image,
@@ -10,11 +11,12 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useSignUp } from "@clerk/clerk-expo";
+import { useAuth, useSignUp } from "@clerk/clerk-expo";
 import { authStyles } from "../../assets/styles/auth.styles";
 
 export default function SignupScreen() {
     const router = useRouter();
+    const { isLoaded: authLoaded, isSignedIn } = useAuth();
     const { signUp, setActive, isLoaded } = useSignUp();
 
     const [email, setEmail] = useState("");
@@ -23,15 +25,34 @@ export default function SignupScreen() {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
 
+    useEffect(() => {
+        if (!authLoaded) return;
+        if (isSignedIn) router.replace("/(tabs)/cases");
+    }, [authLoaded, isSignedIn, router]);
+
+    if (!authLoaded || isSignedIn) {
+        return (
+            <View style={[authStyles.container, { justifyContent: "center", alignItems: "center" }]}>
+                <ActivityIndicator />
+            </View>
+        );
+    }
+
     const handleSignUp = async () => {
         if (!isLoaded || loading) return;
+
+        const trimmedEmail = email.trim();
+        if (!trimmedEmail || !password) {
+            setErrorMsg("Please enter both email and password.");
+            return;
+        }
 
         setErrorMsg("");
         setLoading(true);
 
         try {
             const result = await signUp.create({
-                emailAddress: email.trim(),
+                emailAddress: trimmedEmail,
                 password,
             });
 
@@ -44,7 +65,7 @@ export default function SignupScreen() {
             }
 
             await setActive({ session: result.createdSessionId });
-            router.replace("/(tabs)");
+            router.replace("/(tabs)/cases");
         } catch (err: any) {
             const msg =
                 err?.errors?.[0]?.longMessage ||
@@ -86,6 +107,9 @@ export default function SignupScreen() {
                             placeholder="Email"
                             autoCapitalize="none"
                             keyboardType="email-address"
+                            autoCorrect={false}
+                            autoComplete="email"
+                            textContentType="emailAddress"
                             style={authStyles.textInput}
                         />
                     </View>
@@ -96,6 +120,10 @@ export default function SignupScreen() {
                         onChangeText={setPassword}
                         placeholder="Password"
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="password-new"
+                        textContentType="newPassword"
                         style={authStyles.textInput}
                         />
 
@@ -114,10 +142,10 @@ export default function SignupScreen() {
                     <TouchableOpacity
                         style={[
                         authStyles.authButton,
-                        (!isLoaded || loading) && authStyles.buttonDisabled,
+                        (!isLoaded || loading || !email.trim() || !password) && authStyles.buttonDisabled,
                         ]}
                         activeOpacity={0.8}
-                        disabled={!isLoaded || loading}
+                        disabled={!isLoaded || loading || !email.trim() || !password}
                         onPress={handleSignUp}
                     >
                         <Text style={authStyles.buttonText}>
@@ -128,7 +156,7 @@ export default function SignupScreen() {
                     <TouchableOpacity
                         style={authStyles.linkContainer}
                         activeOpacity={0.8}
-                        onPress={() => router.push("/signin")}
+                        onPress={() => router.push("/(auth)/signin")}
                     >
                         <Text style={authStyles.linkText}>
                         Already have an account?{" "}
