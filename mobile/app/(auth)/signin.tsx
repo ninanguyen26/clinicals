@@ -155,7 +155,7 @@ export default function SigninScreen() {
                 <TouchableOpacity
                     style={authStyles.linkContainer}
                     activeOpacity={0.8}
-                    onPress={() => router.push("/(auth)/signup")}
+                    onPress={() => router.replace("/signup")}
                 >
                     <Text style={authStyles.linkText}>
                     New here? <Text style={authStyles.link}>Create an account</Text>
