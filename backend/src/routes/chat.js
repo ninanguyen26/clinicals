@@ -6,6 +6,13 @@ const { createPatientReply } = require("../llm/navigatorClient");
 
 const router = express.Router();
 
+// prevent transcript aka data dump
+function cleanPatientReply(raw) {
+  return String(raw || "")
+    .split(/\n\s*(user|assistant)\b[:]?/i)[0]
+    .trim();
+}
+
 router.post("/", async (req, res, next) => {
   try {
     const { caseId, messages } = req.body || {};
@@ -21,27 +28,49 @@ router.post("/", async (req, res, next) => {
     }
 
     const safeCase = sanitizeCase(caseData);
-    const systemPrompt = buildPatientSystemPrompt(safeCase);
+    const osceOpening = safeCase.osce_opening || null;
 
     const sanitizedMessages = messages
-      .filter((message) => message && (message.role === "user" || message.role === "assistant"))
-      .map((message) => ({
-        role: message.role,
-        content: String(message.content || "")
+      .filter((m) => m && (m.role === "user" || m.role === "assistant"))
+      .map((m) => ({
+        role: m.role,
+        content: String(m.content || "")
       }))
-      .filter((message) => message.content.trim().length > 0);
+      .filter((m) => m.content.trim().length > 0);
 
+    // allow client to fetch case opener metadata WITHOUT starting the chat
     if (sanitizedMessages.length === 0) {
-      res.status(400).json({ error: "messages must include at least one user or assistant message" });
+      res.json({ reply: "", osce_opening: osceOpening });
       return;
     }
 
-    const reply = await createPatientReply({
+    // OSCE scripted flow by taking turn
+    // count only student turns
+    const userMsgCount = sanitizedMessages.filter((m) => m.role === "user").length;
+
+    // 1st student message -> patient responds with name-permission line (polite)
+    if (osceOpening?.patient_name_permission?.yes && userMsgCount === 1) {
+      res.json({ reply: osceOpening.patient_name_permission.yes, osce_opening: osceOpening });
+      return;
+    }
+
+    // 2nd student message -> patient gives chief complaint
+    if (osceOpening?.patient_chief_complaint_reply && userMsgCount === 2) {
+      res.json({ reply: osceOpening.patient_chief_complaint_reply, osce_opening: osceOpening });
+      return;
+    }
+
+    // after the OSCE opening, use the LLM
+    const systemPrompt = buildPatientSystemPrompt(safeCase);
+
+    const replyRaw = await createPatientReply({
       systemPrompt,
       messages: sanitizedMessages
     });
 
-    res.json({ reply });
+    const reply = cleanPatientReply(replyRaw);
+
+    res.json({ reply, osce_opening: osceOpening });
   } catch (err) {
     next(err);
   }

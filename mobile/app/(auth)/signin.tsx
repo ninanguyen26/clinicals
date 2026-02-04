@@ -158,7 +158,7 @@ export default function SigninScreen() {
                     onPress={() => router.replace("/signup")}
                 >
                     <Text style={authStyles.linkText}>
-                    New here? <Text style={authStyles.link}>Create an account</Text>
+                        New here? <Text style={authStyles.link}>Create an account</Text>
                     </Text>
                 </TouchableOpacity>
             </ScrollView>

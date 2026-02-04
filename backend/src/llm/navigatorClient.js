@@ -16,7 +16,12 @@ async function createPatientReply({ systemPrompt, messages }) {
     model,
     temperature: 0.4,
     max_tokens: 250,
-    stop: ["\nUser:", "\nAssistant:"],
+    stop: [
+      "\nuser",
+      "\nUser",
+      "\nassistant",
+      "\nAssistant"
+    ],
     messages: [
       { role: "system", content: systemPrompt },
       ...messages

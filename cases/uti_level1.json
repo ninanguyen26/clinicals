@@ -3,7 +3,15 @@
   "level": 1,
   "display_title": "Telehealth OSCE UTI (Beginner)",
   "setting": "telehealth_outpatient",
-
+  "time_allowed_minutes": 15,
+  "frame": "Outpatient telehealth OSCE",
+  "primary_tasks": [
+    "History of Present Illness",
+    "Focused Physical Examination",
+    "Plausible Diagnosis",
+    "Patient Plan and Education"
+  ],
+  
   "patient_profile": {
     "age": 25,
     "sex": "female",
@@ -11,12 +19,50 @@
     "background": "college student"
   },
 
-  "presenting_info": {
-    "chief_complaint": "Burning when urinating",
-    "opening_statement": "For the past couple of days it’s been burning when I pee and I’ve been going more often, and today I noticed a little blood when I wiped."
+  "osce_opening": {
+    "student_intro": "Hello, my name is _________, I am a UF, DNP student. May I call you by your first name?",
+    "patient_name_permission": {
+      "yes": "Good to meet you. Yes, that’s fine.",
+      "no": "Good to meet you. I’d prefer you use my full name."
+    },
+    "student_prompt_variants": [
+      "How can I help you today?",
+      "What brings you in today?"
+    ],
+    "patient_chief_complaint_reply": "I am here because I have been having some burning with when I use the bathroom, when I urinate."
   },
 
+  "social_history": {
+    "education": "University student (liberal arts major)",
+    "alcohol_use": "Occasional, not a lot",
+    "tobacco_use": "None",
+    "drug_use": {
+      "marijuana": "Tried a few times, didn’t like it",
+      "last_use": "More than 1 year ago",
+      "other_illicit_drugs": "None"
+    }
+  },
+
+  "presenting_info": {
+    "chief_complaint": "Burning when urinating",
+    "opening_statement": "I am here because I have been having some burning with when I use the bathroom, when I urinate."
+  },
+
+  "physical_exam_if_asked": {
+    "heart": "Regular rate and rhythm",
+    "lungs": "Clear in all fields",
+    "abdomen": "Bowel sounds present; soft; no tenderness",
+    "back": "No pain with percussion (no CVA tenderness)"
+  },
+
+  "irrelevant_exam_pushback": "Why would you have to look at that body part?",
+
   "history": {
+    "family_history": {
+      "parents": "Alive and well",
+      "siblings": "One younger brother (15), alive and well",
+      "patient_attitude": "Patient says they don’t see why family history is relevant."
+    },
     "old_carts": {
       "onset": "2 days ago",
       "location": "Burning in the genital area only; no abdominal pain",
@@ -52,8 +98,18 @@
       "No vaginal bleeding",
       "No genital rash",
       "No abdominal pain",
-      "No back pain"
+      "No back pain",
+      "No rectal bleeding",
+      "No rectal discharge"
     ],
+    "past_medical_history": {
+      "overall_health": "Great; works out often",
+      "prior_illnesses": [
+        "UTI about 1 year ago (similar symptoms)"
+      ],
+      "hospitalizations": "None",
+      "surgeries": "None"
+    },
     "pregnancy": {
       "lmp_days_ago": 10,
       "missed_periods": false,
@@ -76,7 +132,8 @@
   },
 
   "optional_clinical_data": {
-    "labs_available": false
+    "labs_available": false,
+    "available_tests": []
   },
 
   "hidden_truth": {

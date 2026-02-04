@@ -62,13 +62,44 @@ type CaseData = {
     chief_complaint?: string;
     opening_statement?: string;
   };
+  osce_opening?: {
+    student_intro?: string;
+    patient_name_permission?: { yes?: string; no?: string };
+    student_prompt_variants?: string[];
+    patient_chief_complaint_reply?: string;
+  };
 };
 
 type Msg = {
   id: string;
-  role: "user" | "assistant"; // matches your backend filter
+  role: "user" | "assistant"; // matches backend filter
   content: string;
 };
+
+const OPENING_SCRIPT: Msg[] = [
+  {
+    id: "open-u1",
+    role: "user",
+    content:
+      "Hello, my name is _________, I am a UF, DNP student. May I call you by your first name?",
+  },
+  {
+    id: "open-a1",
+    role: "assistant",
+    content: "Good to meet you. Yes.",
+  },
+  {
+    id: "open-u2",
+    role: "user",
+    content: "How can I help you today?",
+  },
+  {
+    id: "open-a2",
+    role: "assistant",
+    content:
+      "I am here because I have been having some burning with when I use the bathroom, when I urinate.",
+  },
+];
 
 export default function Level1Screen() {
   const params = useLocalSearchParams();
@@ -94,24 +125,14 @@ export default function Level1Screen() {
         setLoadingCase(true);
         setError(null);
 
-        // This assumes you have GET /api/cases/:caseId route.
         const data = await request(`/cases/${caseId}`);
         if (cancelled) return;
 
         setCaseData(data);
 
-        // Seed chat with opening statement as ASSISTANT (patient simulator)
-        const opening =
-          data?.presenting_info?.opening_statement ||
-          "Hi... I’m not feeling well.";
-
-        setMessages([
-          {
-            id: "a-0",
-            role: "assistant",
-            content: opening,
-          },
-        ]);
+        // HARDCODED OSCE opening 
+        setMessages(OPENING_SCRIPT);
+        setInput("");
       } catch (e: any) {
         if (cancelled) return;
         setError(e.message || "Failed to load case");
@@ -135,14 +156,13 @@ export default function Level1Screen() {
       content: text,
     };
 
-    // Optimistic UI update
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setInput("");
     setSending(true);
 
     try {
-      // ✅ This matches your backend contract exactly:
+      // backend contract:
       // { caseId, messages: [{role, content}, ...] }
       const data = await request("/chat", {
         method: "POST",
