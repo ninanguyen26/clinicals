@@ -1,18 +1,10 @@
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs } from 'expo-router';
 import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { COLORS } from "../../constants/colors";
-import { useAuth } from "@clerk/clerk-expo";
 
 export default function TabLayout() {
-  const { isLoaded, isSignedIn } = useAuth();
-
-  if (!isLoaded) return null;
-  if (!isSignedIn) {
-    return <Redirect href="/(auth)/signin" />;
-  }
-
   return (
     <Tabs
       screenOptions={{

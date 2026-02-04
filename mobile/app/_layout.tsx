@@ -1,10 +1,11 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "react-native-reanimated";
 
-import { ClerkProvider } from "@clerk/clerk-expo";
+import { ClerkLoaded, ClerkLoading, ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -38,11 +39,24 @@ export default function RootLayout() {
     >
       <SafeAreaProvider style={{ flex: 1 }}>
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
-          </Stack>
+          <ClerkLoading>
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+              <ActivityIndicator />
+            </View>
+          </ClerkLoading>
+          <ClerkLoaded>
+            <SignedIn>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
+              </Stack>
+            </SignedIn>
+            <SignedOut>
+              <Stack>
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              </Stack>
+            </SignedOut>
+          </ClerkLoaded>
           <StatusBar style="auto" />
         </ThemeProvider>
       </SafeAreaProvider>
