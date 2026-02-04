@@ -15,6 +15,8 @@ async function createPatientReply({ systemPrompt, messages }) {
   const payload = {
     model,
     temperature: 0.4,
+    max_tokens: 250,
+    stop: ["\nUser:", "\nAssistant:"],
     messages: [
       { role: "system", content: systemPrompt },
       ...messages

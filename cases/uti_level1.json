@@ -1,53 +1,86 @@
 {
   "case_id": "uti_level1",
   "level": 1,
-  "display_title": "Painful urination (Beginner)",
-  "setting": "urgent care",
+  "display_title": "Telehealth OSCE UTI (Beginner)",
+  "setting": "telehealth_outpatient",
 
   "patient_profile": {
-    "age": 24,
+    "age": 25,
     "sex": "female",
-    "communication_style": "anxious but cooperative",
+    "communication_style": "friendly, not worried, cooperative",
     "background": "college student"
   },
 
   "presenting_info": {
     "chief_complaint": "Burning when urinating",
-    "opening_statement": "It burns when I pee and I’ve been going more often."
+    "opening_statement": "For the past couple of days it’s been burning when I pee and I’ve been going more often, and today I noticed a little blood when I wiped."
   },
 
   "history": {
-    "onset": "3 days ago",
+    "old_carts": {
+      "onset": "2 days ago",
+      "location": "Burning in the genital area only; no abdominal pain",
+      "duration": "Burning occurs only during urination",
+      "character": "Mild sharp pain at the start of urination with burning throughout",
+      "radiation": "None",
+      "severity": "2–3/10 during urination",
+      "timing": "Blood first noticed today",
+      "modifying_factors": "Drank extra water last night; no other treatments tried"
+    },
     "symptoms": {
-      "urinary_frequency": true,
-      "urgency": true,
       "dysuria": true,
-      "hematuria": false
+      "urinary_frequency": true,
+      "urgency": false,
+      "hematuria": true
+    },
+    "urine_description": {
+      "color": "Dark yellow/amber",
+      "blood_observed": "Small amount of blood on toilet tissue when wiping"
+    },
+    "contextual_factors": {
+      "lifestyle": "Busy college schedule",
+      "caffeine_intake": "Drinks coffee regularly",
+      "hydration": "Drinking less water than usual"
     },
     "pertinent_negatives": [
+      "No fever",
+      "No chills",
       "No flank pain",
+      "No nausea",
       "No vomiting",
-      "No high fever"
+      "No vaginal discharge",
+      "No vaginal bleeding",
+      "No genital rash",
+      "No abdominal pain",
+      "No back pain"
     ],
-    "pregnancy_status": "not pregnant",
+    "pregnancy": {
+      "lmp_days_ago": 10,
+      "missed_periods": false,
+      "otc_test_taken": true,
+      "otc_test_result": "negative"
+    },
+    "prior_utis": {
+      "history": true,
+      "most_recent_episode": "Approximately 1 year ago",
+      "similar_symptoms": true
+    },
     "allergies": ["none"],
-    "medications": ["oral contraceptive"]
+    "sexual_history": {
+      "sexually_active": true,
+      "partner_duration_months": 2,
+      "protection": "Condoms only",
+      "other_birth_control": false
+    },
+    "medications": []
   },
 
   "optional_clinical_data": {
-    "vitals": {
-      "temperature_f": 98.7,
-      "heart_rate": 88,
-      "bp": "118/74"
-    },
-    "available_tests": [
-      "urinalysis",
-      "urine pregnancy test"
-    ]
+    "labs_available": false
   },
 
   "hidden_truth": {
-    "primary_diagnosis": "Uncomplicated cystitis (UTI)",
+    "primary_diagnosis": "Uncomplicated urinary tract infection (cystitis)",
     "differentials": [
       "vaginitis",
       "STI/urethritis",

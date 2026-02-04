@@ -3,6 +3,9 @@
   "grading_version": "1.0",
 
   "required_history_topics": [
+    "hematuria (blood in urine) timing/amount",
+    "vaginal discharge or bleeding", 
+    "recent sexual activity / STI risk screening",
     "symptom onset and duration",
     "urinary frequency/urgency",
     "fever or chills",
@@ -13,14 +16,18 @@
   ],
 
   "required_actions": [
-    "consider urinalysis",
-    "ask about pregnancy test if applicable",
-    "provide treatment plan and return precautions"
+    "education: hydration",
+    "education: wipe front to back",
+    "education: urinate after intercourse",
+    "state whether UA would be helpful and plan follow-up testing if symptoms persist/worsen",
+    "confirm pregnancy status (LMP + OTC test result if already done)",
+    "provide telehealth-appropriate follow-up plan (recheck in ~1 week)",
+    "give return precautions for escalation (fever, flank pain, vomiting, worsening symptoms)"
   ],
 
   "critical_fails": [
     "missed pregnancy status when patient is of childbearing age",
-    "missed signs of possible pyelonephritis (fever + flank pain)"
+    "failed to assess pyelonephritis red flags (fever/chills, flank pain, vomiting)"
   ],
 
   "scoring": {
