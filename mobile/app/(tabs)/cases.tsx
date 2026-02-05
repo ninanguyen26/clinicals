@@ -14,8 +14,17 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [cases, setCases] = useState<{ caseId: string; title: string }[]>([]);
 
-  const primaryEmail = useMemo(() => {
-    return user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || "Unknown";
+  const displayName = useMemo(() => {
+    // username, fallback to email, then "there"
+    const info =
+      user?.username ||
+      user?.firstName ||
+      user?.primaryEmailAddress?.emailAddress ||
+      user?.emailAddresses?.[0]?.emailAddress ||
+      "there";
+
+      // capitalize 1st letter
+    return info.charAt(0).toUpperCase() + info.slice(1);
   }, [user]);
 
   const loadCases = useCallback(async () => {
@@ -60,9 +69,11 @@ export default function HomeScreen() {
         }}
       >
         <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700" }}>Signed in</Text>
+          <Text style={{ fontSize: 16, fontWeight: "700" }}>
+            Hi, {displayName}
+          </Text>
           <Text numberOfLines={1} style={{ color: "#4b5563" }}>
-            {primaryEmail}
+            {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""}
           </Text>
         </View>
         <Pressable

@@ -11,10 +11,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
+import { useUser } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
+
 
 async function request(
   path: string,
@@ -76,31 +78,6 @@ type Msg = {
   content: string;
 };
 
-const OPENING_SCRIPT: Msg[] = [
-  {
-    id: "open-u1",
-    role: "user",
-    content:
-      "Hello, my name is _________, I am a UF, DNP student. May I call you by your first name?",
-  },
-  {
-    id: "open-a1",
-    role: "assistant",
-    content: "Good to meet you. Yes.",
-  },
-  {
-    id: "open-u2",
-    role: "user",
-    content: "How can I help you today?",
-  },
-  {
-    id: "open-a2",
-    role: "assistant",
-    content:
-      "I am here because I have been having some burning with when I use the bathroom, when I urinate.",
-  },
-];
-
 export default function Level1Screen() {
   const params = useLocalSearchParams();
   const caseId = useMemo(() => {
@@ -117,6 +94,13 @@ export default function Level1Screen() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const listRef = useRef<FlatList<Msg>>(null);
 
+  const { user } = useUser();
+
+  const displayName = useMemo(() => {
+    const raw = user?.username || user?.firstName || "Student";
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }, [user]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -130,8 +114,23 @@ export default function Level1Screen() {
 
         setCaseData(data);
 
-        // HARDCODED OSCE opening 
-        setMessages(OPENING_SCRIPT);
+        // HARDCODED OSCE opening for now bruhhh
+        setMessages([
+        {
+          id: "open-u1",
+          role: "user",
+          content: `Hello, my name is ${displayName}, I am a UF, DNP student. May I call you by your first name?`,
+        },
+        { id: "open-a1", role: "assistant", content: "Good to meet you. Yes." },
+        { id: "open-u2", role: "user", content: "How can I help you today?" },
+        {
+          id: "open-a2",
+          role: "assistant",
+          content:
+            "I am here because I have been having some burning with when I use the bathroom, when I urinate.",
+        },
+      ]);
+
         setInput("");
       } catch (e: any) {
         if (cancelled) return;
@@ -144,7 +143,7 @@ export default function Level1Screen() {
     return () => {
       cancelled = true;
     };
-  }, [caseId]);
+  }, [caseId, displayName]);
 
   const send = async () => {
     const text = input.trim();

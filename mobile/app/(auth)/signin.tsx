@@ -19,7 +19,7 @@ export default function SigninScreen() {
     const { isLoaded: authLoaded, isSignedIn } = useAuth();
     const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
 
-    const [email, setEmail] = useState("");
+    const [identifier, setIdentifier] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -43,9 +43,9 @@ export default function SigninScreen() {
     const handleSignIn = async () => {
         if (!signInLoaded || loading) return;
 
-        const trimmedEmail = email.trim();
-        if (!trimmedEmail || !password) {
-            setErrorMsg("Please enter both email and password.");
+        const trimmedIdentifier = identifier.trim();
+        if (!trimmedIdentifier || !password) {
+            setErrorMsg("Please enter your email/username and password.");
             return;
         }
 
@@ -53,23 +53,23 @@ export default function SigninScreen() {
         setLoading(true);
 
         try {
-        const result = await signIn.create({
-            identifier: trimmedEmail,
-            password,
-        });
+            const result = await signIn.create({
+                identifier: trimmedIdentifier,
+                password,
+            });
 
-        if (result.status !== "complete") {
-            setErrorMsg("Sign in requires additional verification.");
-            return;
-        }
+            if (result.status !== "complete") {
+                setErrorMsg("Sign in requires additional verification.");
+                return;
+            }
 
-        await setActive({ session: result.createdSessionId });
-        router.replace("/(tabs)/cases");
+            await setActive({ session: result.createdSessionId });
+            router.replace("/(tabs)/cases");
         } catch (err: any) {
-        const msg =
-            err?.errors?.[0]?.longMessage ||
-            err?.errors?.[0]?.message ||
-            "Sign in failed.";
+            const msg =
+                err?.errors?.[0]?.longMessage ||
+                err?.errors?.[0]?.message ||
+                "Sign in failed.";
             setErrorMsg(msg);
         } finally {
             setLoading(false);
@@ -101,14 +101,11 @@ export default function SigninScreen() {
 
                 <View style={authStyles.inputContainer}>
                     <TextInput
-                        value={email}
-                        onChangeText={setEmail}
-                        placeholder="Email"
+                        value={identifier}
+                        onChangeText={setIdentifier}
+                        placeholder="Email or Username"
                         autoCapitalize="none"
-                        keyboardType="email-address"
                         autoCorrect={false}
-                        autoComplete="email"
-                        textContentType="emailAddress"
                         style={authStyles.textInput}
                     />
                 </View>
@@ -141,10 +138,10 @@ export default function SigninScreen() {
                 <TouchableOpacity
                     style={[
                         authStyles.authButton,
-                        (!signInLoaded || loading || !email.trim() || !password) && authStyles.buttonDisabled,
+                        (!signInLoaded || loading || !identifier.trim() || !password) && authStyles.buttonDisabled,
                     ]}
                     activeOpacity={0.8}
-                    disabled={!signInLoaded || loading || !email.trim() || !password}
+                    disabled={!signInLoaded || loading || !identifier.trim() || !password}
                     onPress={handleSignIn}
                 >
                     <Text style={authStyles.buttonText}>

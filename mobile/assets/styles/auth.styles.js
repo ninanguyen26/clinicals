@@ -48,7 +48,7 @@ export const authStyles = StyleSheet.create({
   textInput: {
     fontSize: 16,
     color: COLORS.text,
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     paddingRight: 56,
     backgroundColor: COLORS.background,
@@ -59,7 +59,7 @@ export const authStyles = StyleSheet.create({
   eyeButton: {
     position: "absolute",
     right: 16,
-    top: 16,
+    top: 8,
     padding: 6,
   },
   eyeText: {
