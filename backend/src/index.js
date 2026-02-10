@@ -5,6 +5,8 @@ const dotenv = require("dotenv");
 const casesRouter = require("./routes/cases");
 const chatRouter = require("./routes/chat");
 const gradeRouter = require("./routes/grade");
+const conversationsRouter = require("./routes/conversations");
+const { syncAllCases } = require("./utils/caseSync");
 
 dotenv.config();
 
@@ -15,6 +17,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/api/cases", casesRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/grade", gradeRouter);
+app.use("/api/conversations", conversationsRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -28,4 +31,7 @@ app.use((err, _req, res, _next) => {
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`Clinicals backend listening on port ${port}`);
+  syncAllCases()
+    .then((count) => console.log(`Synced ${count} cases into database`))
+    .catch((err) => console.error("Case sync failed:", err));
 });
