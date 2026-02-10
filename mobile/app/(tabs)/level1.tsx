@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -93,6 +93,9 @@ export default function Level1Screen() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const listRef = useRef<FlatList<Msg>>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [pendingMessages, setPendingMessages] = useState<Msg[]>([]);
+  const [creatingConversation, setCreatingConversation] = useState(false);
 
   const { user } = useUser();
 
@@ -100,6 +103,76 @@ export default function Level1Screen() {
     const raw = user?.username || user?.firstName || "Student";
     return raw.charAt(0).toUpperCase() + raw.slice(1);
   }, [user]);
+
+  const userHeaders = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (user?.id) headers["x-clerk-user-id"] = user.id;
+    if (user?.fullName) headers["x-user-name"] = user.fullName;
+    const email = user?.primaryEmailAddress?.emailAddress;
+    if (email) headers["x-user-email"] = email;
+    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
+    return headers;
+  }, [user]);
+
+  const queueMessage = useCallback((msg: Msg) => {
+    setPendingMessages((prev) => [...prev, msg]);
+  }, []);
+
+  const persistMessage = useCallback(
+    async (msg: Msg) => {
+      if (!conversationId) return;
+      try {
+        await request(`/conversations/${conversationId}/messages`, {
+          method: "POST",
+          headers: userHeaders,
+          body: {
+            role: msg.role,
+            content: msg.content,
+          },
+        });
+      } catch (err) {
+        console.warn("Failed to persist message:", err);
+      }
+    },
+    [conversationId, userHeaders]
+  );
+
+  const ensureConversation = useCallback(async () => {
+    if (!userHeaders["x-clerk-user-id"] || creatingConversation || conversationId) {
+      return;
+    }
+    setCreatingConversation(true);
+    try {
+      const data = await request("/conversations", {
+        method: "POST",
+        headers: userHeaders,
+        body: { caseId },
+      });
+      setConversationId(String(data?.conversationId));
+    } catch (err) {
+      console.warn("Failed to create conversation:", err);
+    } finally {
+      setCreatingConversation(false);
+    }
+  }, [caseId, conversationId, creatingConversation, userHeaders]);
+
+  useEffect(() => {
+    setConversationId(null);
+    setPendingMessages([]);
+  }, [caseId]);
+
+  useEffect(() => {
+    ensureConversation();
+  }, [ensureConversation]);
+
+  useEffect(() => {
+    if (!conversationId || pendingMessages.length === 0) return;
+    const toPersist = pendingMessages;
+    setPendingMessages([]);
+    toPersist.forEach((msg) => {
+      persistMessage(msg);
+    });
+  }, [conversationId, pendingMessages, persistMessage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,22 +187,31 @@ export default function Level1Screen() {
 
         setCaseData(data);
 
-        // HARDCODED OSCE opening for now bruhhh
-        setMessages([
-        {
-          id: "open-u1",
-          role: "user",
-          content: `Hello, my name is ${displayName}, I am a UF, DNP student. May I call you by your first name?`,
-        },
-        { id: "open-a1", role: "assistant", content: "Good to meet you. Yes." },
-        { id: "open-u2", role: "user", content: "How can I help you today?" },
-        {
-          id: "open-a2",
-          role: "assistant",
-          content:
-            "I am here because I have been having some burning with when I use the bathroom, when I urinate.",
-        },
-      ]);
+        // HARDCODED OSCE opening for now
+        const openingMessages: Msg[] = [
+          {
+            id: "open-u1",
+            role: "user",
+            content: `Hello, my name is ${displayName}, I am a UF, DNP student. May I call you by your first name?`,
+          },
+          { id: "open-a1", role: "assistant", content: "Good to meet you. Yes." },
+          { id: "open-u2", role: "user", content: "How can I help you today?" },
+          {
+            id: "open-a2",
+            role: "assistant",
+            content:
+              "I am here because I have been having some burning with when I use the bathroom, when I urinate.",
+          },
+        ];
+
+        setMessages(openingMessages);
+        if (conversationId) {
+          openingMessages.forEach((msg) => {
+            persistMessage(msg);
+          });
+        } else {
+          openingMessages.forEach((msg) => queueMessage(msg));
+        }
 
         setInput("");
       } catch (e: any) {
@@ -143,7 +225,7 @@ export default function Level1Screen() {
     return () => {
       cancelled = true;
     };
-  }, [caseId, displayName]);
+  }, [caseId, displayName, conversationId, persistMessage, queueMessage]);
 
   const send = async () => {
     const text = input.trim();
@@ -157,6 +239,11 @@ export default function Level1Screen() {
 
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
+    if (conversationId) {
+      persistMessage(userMsg);
+    } else {
+      queueMessage(userMsg);
+    }
     setInput("");
     setSending(true);
 
@@ -183,6 +270,11 @@ export default function Level1Screen() {
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
+      if (conversationId) {
+        persistMessage(assistantMsg);
+      } else {
+        queueMessage(assistantMsg);
+      }
     } catch (e: any) {
       const assistantMsg: Msg = {
         id: `a-err-${Date.now()}`,
