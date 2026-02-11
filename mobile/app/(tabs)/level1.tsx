@@ -8,15 +8,20 @@ import {
   Text,
   TextInput,
   View,
+  Image
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useUser } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
+import { caseStyles } from "../../assets/styles/case.styles";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
 
+const PATIENT_IMAGES: Record<string, any> = {
+  uti_level1: require("../../assets/patients/uti_level1.png"),
+};
 
 async function request(
   path: string,
@@ -290,7 +295,7 @@ export default function Level1Screen() {
 
   if (loadingCase) {
     return (
-      <SafeAreaView style={{ flex: 1, padding: 16 }}>
+      <SafeAreaView style={caseStyles.container}>
         <ActivityIndicator />
       </SafeAreaView>
     );
@@ -298,7 +303,7 @@ export default function Level1Screen() {
 
   if (error) {
     return (
-      <SafeAreaView style={{ flex: 1, padding: 16 }}>
+      <SafeAreaView style={caseStyles.container}>
         <Text style={{ fontWeight: "700", marginBottom: 8 }}>Failed</Text>
         <Text>{error}</Text>
       </SafeAreaView>
@@ -306,22 +311,34 @@ export default function Level1Screen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={caseStyles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={8}
       >
         {/* Header */}
-        <View style={{ padding: 16, gap: 4 }}>
-          <Text style={{ fontSize: 20, fontWeight: "700" }}>
-            Level {caseData?.level ?? "?"} – {caseData?.display_title ?? caseId}
+        <View style={caseStyles.header}>
+          <View style={caseStyles.avatarWrapper}>
+            <Image
+              source={PATIENT_IMAGES[caseId]}
+              style={caseStyles.avatar}
+              resizeMode="cover"
+            />
+          </View>
+
+          <Text style={caseStyles.title}>
+            Level {caseData?.level ?? "?"} 
           </Text>
+
           {!!caseData?.setting && (
-            <Text style={{ opacity: 0.7 }}>Setting: {caseData.setting}</Text>
+            <Text style={caseStyles.subText}>
+              Setting: {caseData.setting}
+            </Text>
           )}
+
           {!!caseData?.presenting_info?.chief_complaint && (
-            <Text style={{ opacity: 0.7 }}>
+            <Text style={caseStyles.subText}>
               Chief complaint: {caseData.presenting_info.chief_complaint}
             </Text>
           )}
@@ -332,20 +349,15 @@ export default function Level1Screen() {
           ref={listRef}
           data={messages}
           keyExtractor={(m) => m.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12 }}
+          contentContainerStyle={caseStyles.chatContainer}
           renderItem={({ item }) => {
             const isUser = item.role === "user";
             return (
               <View
-                style={{
-                  alignSelf: isUser ? "flex-end" : "flex-start",
-                  maxWidth: "85%",
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  borderWidth: 1,
-                  borderRadius: 12,
-                  marginBottom: 10,
-                }}
+                style={[
+                  caseStyles.messageBubble,
+                  { alignSelf: isUser ? "flex-end" : "flex-start" },
+                ]}
               >
                 <Text style={{ fontWeight: "700", marginBottom: 4 }}>
                   {isUser ? "You" : "Patient"}
@@ -360,26 +372,12 @@ export default function Level1Screen() {
         />
 
         {/* Input */}
-        <View
-          style={{
-            padding: 12,
-            borderTopWidth: 1,
-            flexDirection: "row",
-            gap: 10,
-            alignItems: "center",
-          }}
-        >
+        <View style={caseStyles.inputContainer}>
           <TextInput
             value={input}
             onChangeText={setInput}
             placeholder="Ask the patient a question..."
-            style={{
-              flex: 1,
-              borderWidth: 1,
-              borderRadius: 10,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-            }}
+            style={caseStyles.textInput}
             editable={!sending}
             returnKeyType="send"
             onSubmitEditing={send}
@@ -388,10 +386,7 @@ export default function Level1Screen() {
             onPress={send}
             disabled={sending || !input.trim()}
             style={({ pressed }) => ({
-              paddingVertical: 10,
-              paddingHorizontal: 14,
-              borderWidth: 1,
-              borderRadius: 10,
+              ...caseStyles.sendButton,
               opacity: sending || !input.trim() ? 0.4 : pressed ? 0.6 : 1,
             })}
           >
