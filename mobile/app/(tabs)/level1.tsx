@@ -104,11 +104,6 @@ export default function Level1Screen() {
 
   const { user } = useUser();
 
-  const displayName = useMemo(() => {
-    const raw = user?.username || user?.firstName || "Student";
-    return raw.charAt(0).toUpperCase() + raw.slice(1);
-  }, [user]);
-
   const userHeaders = useMemo(() => {
     const headers: Record<string, string> = {};
     if (user?.id) headers["x-clerk-user-id"] = user.id;
@@ -192,32 +187,8 @@ export default function Level1Screen() {
 
         setCaseData(data);
 
-        // HARDCODED OSCE opening for now
-        const openingMessages: Msg[] = [
-          {
-            id: "open-u1",
-            role: "user",
-            content: `Hello, my name is ${displayName}, I am a UF, DNP student. May I call you by your first name?`,
-          },
-          { id: "open-a1", role: "assistant", content: "Good to meet you. Yes." },
-          { id: "open-u2", role: "user", content: "How can I help you today?" },
-          {
-            id: "open-a2",
-            role: "assistant",
-            content:
-              "I am here because I have been having some burning with when I use the bathroom, when I urinate.",
-          },
-        ];
-
-        setMessages(openingMessages);
-        if (conversationId) {
-          openingMessages.forEach((msg) => {
-            persistMessage(msg);
-          });
-        } else {
-          openingMessages.forEach((msg) => queueMessage(msg));
-        }
-
+        // Start with an empty transcript so opening behavior is graded from user input.
+        setMessages([]);
         setInput("");
       } catch (e: any) {
         if (cancelled) return;
@@ -230,7 +201,7 @@ export default function Level1Screen() {
     return () => {
       cancelled = true;
     };
-  }, [caseId, displayName, conversationId, persistMessage, queueMessage]);
+  }, [caseId]);
 
   const send = async () => {
     const text = input.trim();
@@ -370,6 +341,13 @@ export default function Level1Screen() {
             listRef.current?.scrollToEnd({ animated: true })
           }
         />
+        {messages.length === 0 && (
+          <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+            <Text style={{ color: "#555" }}>
+              Start with your OSCE introduction (name + title), then ask what brings the patient in.
+            </Text>
+          </View>
+        )}
 
         {/* Input */}
         <View style={caseStyles.inputContainer}>

@@ -13,6 +13,10 @@
   ],
   
   "patient_profile": {
+    "first_name": "Taylor",
+    "last_name": "Reed",
+    "preferred_name": "Taylor",
+    "date_of_birth": "2001-02-14",
     "age": 25,
     "sex": "female",
     "communication_style": "friendly, not worried, cooperative",
