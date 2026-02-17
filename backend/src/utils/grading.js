@@ -1,96 +1,44 @@
+const { createRubricEval } = require("../llm/navigatorClient");
+const { expandCriteriaWithCommon } = require("./rubricCommon");
+
 function normalizeText(text) {
-  return text
+  return String(text || "")
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function collectUserText(conversation) {
-  return normalizeText(
-    conversation
-      .filter((message) => message && message.role === "user")
-      .map((message) => message.content || "")
-      .join(" ")
-  );
-}
-
-const TOPIC_KEYWORDS = {
-  "symptom onset and duration": [
-    "when did",
-    "how long",
-    "start",
-    "started",
-    "began",
-    "onset",
-    "duration"
-  ],
-  "urinary frequency/urgency": [
-    "frequency",
-    "frequent",
-    "urgency",
-    "urgent",
-    "going more",
-    "pee more",
-    "urinate more"
-  ],
-  "fever or chills": ["fever", "chills", "chill"],
-  "flank pain": ["flank", "side pain", "back pain"],
-  "nausea or vomiting": ["nausea", "vomit", "vomiting", "throw up"],
-  "pregnancy status": ["pregnant", "pregnancy", "lmp", "last period"],
-  "medication allergies": ["allergy", "allergic", "allergies"],
-  "symptom onset": ["when did", "how long", "start", "started", "began", "onset"],
-  "urinary frequency": ["frequency", "frequent", "going more", "pee more"],
-  "urgency": ["urgency", "urgent"]
-};
-
-const ACTION_RULES = {
-  "consider urinalysis": {
-    any: ["urinalysis", "urine test", "ua", "dipstick"]
-  },
-  "ask about pregnancy test if applicable": {
-    any: ["pregnancy test", "urine pregnancy", "hcg"]
-  },
-  "provide treatment plan and return precautions": {
-    any: ["treat", "treatment", "antibiotic", "prescribe", "plan"],
-    any2: ["return", "come back", "worse", "er", "emergency", "precautions", "follow up"]
-  }
-};
-
-const RED_FLAG_KEYWORDS = {
-  "fever > 101f": ["fever", "temperature"],
-  "flank pain": ["flank", "side pain", "back pain"],
-  "vomiting": ["vomit", "vomiting", "throw up"],
-  "pregnancy": ["pregnant", "pregnancy", "lmp", "last period"]
-};
-
 function normalizeKeywords(input) {
-  if (!input) return null;
+  if (!input) return [];
   if (Array.isArray(input)) {
     return input
-      .map((item) => String(item).toLowerCase().trim())
+      .map((item) => normalizeText(item))
       .filter((item) => item.length > 0);
   }
-  if (typeof input === "string") {
-    const keyword = input.toLowerCase().trim();
-    return keyword ? [keyword] : null;
-  }
-  return null;
+  const keyword = normalizeText(input);
+  return keyword ? [keyword] : [];
+}
+
+function normalizeKeywordGroups(input) {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((group) => normalizeKeywords(group))
+    .filter((group) => group.length > 0);
 }
 
 function normalizeOverrideMap(map) {
   if (!map || typeof map !== "object") return {};
   const normalized = {};
   Object.entries(map).forEach(([key, value]) => {
-    normalized[String(key).toLowerCase()] = value;
+    normalized[normalizeText(key)] = value;
   });
   return normalized;
 }
 
 function keywordsFromPhrase(phrase) {
-  return phrase
-    .toLowerCase()
-    .split(/\W+/)
+  return normalizeText(phrase)
+    .split(/\s+/)
     .filter((word) => word.length >= 4);
 }
 
@@ -98,109 +46,335 @@ function includesAny(text, keywords) {
   return keywords.some((keyword) => text.includes(keyword));
 }
 
-function topicCovered(text, topic, overrideKeywords) {
-  const key = topic.toLowerCase();
-  const custom = normalizeKeywords(overrideKeywords?.[key]);
-  const keywords = custom || TOPIC_KEYWORDS[key] || keywordsFromPhrase(topic);
-  return keywords.length > 0 && includesAny(text, keywords);
+function roundTo(value, decimals = 2) {
+  const factor = 10 ** decimals;
+  return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
 }
 
-function actionCovered(text, action, overrideRules) {
-  const key = action.toLowerCase();
-  const override = overrideRules?.[key];
-  if (override) {
-    const overrideList = normalizeKeywords(override);
-    if (overrideList) {
-      return includesAny(text, overrideList);
-    }
-    if (typeof override === "object") {
-      const any = normalizeKeywords(override.any) || [];
-      const any2 = normalizeKeywords(override.any2) || [];
-      if (any.length && any2.length) {
-        return includesAny(text, any) && includesAny(text, any2);
-      }
-      return includesAny(text, any);
-    }
+function collectTextBySource(conversation, source) {
+  const target = source || "user";
+  if (target === "all") {
+    return normalizeText((conversation || []).map((message) => message?.content || "").join(" "));
   }
-  const rule = ACTION_RULES[key];
-  if (!rule) {
-    const keywords = keywordsFromPhrase(action);
-    return keywords.length > 0 && includesAny(text, keywords);
-  }
-  if (rule.any && rule.any2) {
-    return includesAny(text, rule.any) && includesAny(text, rule.any2);
-  }
-  return includesAny(text, rule.any || []);
+
+  const allowedRoles = Array.isArray(target) ? target : [target];
+  const roleSet = new Set(allowedRoles.map((role) => String(role).toLowerCase()));
+
+  return normalizeText(
+    (conversation || [])
+      .filter((message) => message && roleSet.has(String(message.role || "").toLowerCase()))
+      .map((message) => message.content || "")
+      .join(" ")
+  );
 }
 
-function redFlagCovered(text, redFlag, overrideKeywords) {
-  const key = redFlag.toLowerCase();
-  const custom = normalizeKeywords(overrideKeywords?.[key]);
-  const keywords = custom || RED_FLAG_KEYWORDS[key] || keywordsFromPhrase(redFlag);
-  return keywords.length > 0 && includesAny(text, keywords);
+function evaluateRule(text, rule) {
+  const anyKeywords = normalizeKeywords(rule?.any);
+  const allKeywords = normalizeKeywords(rule?.all);
+  const groups = normalizeKeywordGroups(rule?.groups);
+
+  const evidence = [];
+
+  if (allKeywords.length > 0) {
+    for (const keyword of allKeywords) {
+      if (!text.includes(keyword)) {
+        return { matched: false, evidence: [] };
+      }
+      evidence.push(keyword);
+    }
+  }
+
+  if (anyKeywords.length > 0) {
+    const matchedAny = anyKeywords.filter((keyword) => text.includes(keyword));
+    if (matchedAny.length === 0) {
+      return { matched: false, evidence: [] };
+    }
+    evidence.push(...matchedAny.slice(0, 3));
+  }
+
+  if (groups.length > 0) {
+    for (const group of groups) {
+      const matched = group.find((keyword) => text.includes(keyword));
+      if (!matched) {
+        return { matched: false, evidence: [] };
+      }
+      evidence.push(matched);
+    }
+  }
+
+  if (allKeywords.length === 0 && anyKeywords.length === 0 && groups.length === 0) {
+    return { matched: false, evidence: [] };
+  }
+
+  return { matched: true, evidence: [...new Set(evidence)].slice(0, 5) };
 }
 
-function checkCriticalFails(coverage) {
-  const fails = [];
+function extractJsonObject(text) {
+  if (!text) return null;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const raw = fenced ? fenced[1] : text;
 
-  coverage.criticalFails.forEach((failText) => {
-    const lowered = failText.toLowerCase();
-    if (lowered.includes("pregnancy status")) {
-      if (!coverage.historyTopics["pregnancy status"]) {
-        fails.push(failText);
-      }
-      return;
+  const firstBrace = raw.indexOf("{");
+  const lastBrace = raw.lastIndexOf("}");
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    return null;
+  }
+
+  const candidate = raw.slice(firstBrace, lastBrace + 1);
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+}
+
+function buildConversationTranscript(conversation) {
+  return (conversation || [])
+    .map((message, idx) => {
+      const role = String(message?.role || "unknown").toUpperCase();
+      const content = String(message?.content || "").trim();
+      return `${idx + 1}. ${role}: ${content}`;
+    })
+    .join("\n");
+}
+
+function describeRuleForLlm(rule) {
+  const anyKeywords = normalizeKeywords(rule?.any);
+  const allKeywords = normalizeKeywords(rule?.all);
+  const groups = normalizeKeywordGroups(rule?.groups);
+  const parts = [];
+
+  if (allKeywords.length) {
+    parts.push(`Must include all concepts: ${allKeywords.join(", ")}`);
+  }
+  if (anyKeywords.length) {
+    parts.push(`Can match any of: ${anyKeywords.join(", ")}`);
+  }
+  if (groups.length) {
+    const groupSummary = groups.map((group) => `[${group.join(", ")}]`).join(" + ");
+    parts.push(`For each group, mention at least one concept: ${groupSummary}`);
+  }
+
+  return parts.join(" ");
+}
+
+async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
+  const llmCriteria = criteria.filter(
+    (criterion) =>
+      criterion.enabled !== false &&
+      (criterion.mode === "llm" || criterion.mode === "llm_or_rule")
+  );
+
+  if (!llmCriteria.length) {
+    return new Map();
+  }
+
+  const criteriaPrompt = llmCriteria
+    .map((criterion) => {
+      const source = criterion.source || "user";
+      const guidance =
+        criterion.prompt_hint ||
+        criterion.description ||
+        describeRuleForLlm(criterion.rule || criterion.fallback_rule);
+      const guidanceLine = guidance ? `\n  guidance: ${guidance}` : "";
+      return `- id: ${criterion.id}\n  label: ${
+        criterion.label || criterion.id
+      }\n  points: ${Number(criterion.points) || 0}\n  source: ${source}${guidanceLine}`;
+    })
+    .join("\n");
+
+  const transcript = buildConversationTranscript(conversation);
+
+  const systemPrompt = [
+    "You are a strict clinical OSCE rubric grader.",
+    "Evaluate each criterion as met or missed using ONLY the conversation transcript.",
+    "Do not infer facts that were not said; if unsure, mark missed.",
+    "Paraphrases count when they are clearly equivalent to the criterion guidance.",
+    "Return only JSON with this schema:",
+    '{"results":[{"id":"criterion_id","status":"met|missed","evidence":"short quote or summary"}]}'
+  ].join(" ");
+
+  const userPrompt = [
+    `Case ID: ${caseData?.case_id || "unknown"}`,
+    "Criteria:",
+    criteriaPrompt,
+    "Transcript:",
+    transcript
+  ].join("\n\n");
+
+  try {
+    const response = await createRubricEval({ systemPrompt, userPrompt });
+    const parsed = extractJsonObject(response);
+    const rows = Array.isArray(parsed?.results) ? parsed.results : [];
+
+    const resultMap = new Map();
+    rows.forEach((row) => {
+      const id = String(row?.id || "").trim();
+      const status = normalizeText(row?.status);
+      if (!id || (status !== "met" && status !== "missed")) return;
+
+      resultMap.set(id, {
+        status,
+        evidence: String(row?.evidence || "").trim()
+      });
+    });
+
+    return resultMap;
+  } catch {
+    return new Map();
+  }
+}
+
+function normalizeTags(tags) {
+  if (!Array.isArray(tags)) return [];
+  return tags.map((tag) => normalizeText(tag)).filter(Boolean);
+}
+
+function evaluateCriterion(conversation, criterion, llmResults) {
+  const enabled = criterion.enabled !== false;
+  const tags = normalizeTags(criterion.tags);
+  const points = Number(criterion.points) || 0;
+
+  if (!enabled) {
+    return {
+      id: criterion.id,
+      section: criterion.section,
+      label: criterion.label || criterion.id,
+      tags,
+      points,
+      earned_points: 0,
+      status: "omitted",
+      omit_reason: criterion.omit_reason || "Marked not applicable for this case",
+      evidence: []
+    };
+  }
+
+  const mode = criterion.mode || "rule";
+  const text = collectTextBySource(conversation, criterion.source || "user");
+
+  if ((mode === "llm" || mode === "llm_or_rule") && llmResults?.has(criterion.id)) {
+    const llm = llmResults.get(criterion.id);
+    const matched = llm.status === "met";
+    return {
+      id: criterion.id,
+      section: criterion.section,
+      label: criterion.label || criterion.id,
+      tags,
+      points,
+      earned_points: matched ? points : 0,
+      status: matched ? "met" : "missed",
+      omit_reason: null,
+      evidence: llm.evidence ? [llm.evidence] : []
+    };
+  }
+
+  const fallbackRule = criterion.fallback_rule || criterion.rule || {};
+  const ruleResult = evaluateRule(text, fallbackRule);
+
+  return {
+    id: criterion.id,
+    section: criterion.section,
+    label: criterion.label || criterion.id,
+    tags,
+    points,
+    earned_points: ruleResult.matched ? points : 0,
+    status: ruleResult.matched ? "met" : "missed",
+    omit_reason: null,
+    evidence: ruleResult.evidence
+  };
+}
+
+function summarizeSections(sectionDefs, criterionResults) {
+  const sectionMap = new Map();
+
+  (sectionDefs || []).forEach((section) => {
+    if (!section || !section.id) return;
+    sectionMap.set(section.id, {
+      section: section.id,
+      label: section.label || section.id,
+      earned_points: 0,
+      available_points: 0,
+      total_points: 0
+    });
+  });
+
+  criterionResults.forEach((result) => {
+    const key = result.section || "other";
+    if (!sectionMap.has(key)) {
+      sectionMap.set(key, {
+        section: key,
+        label: key,
+        earned_points: 0,
+        available_points: 0,
+        total_points: 0
+      });
     }
 
-    if (lowered.includes("pyelonephritis") || lowered.includes("fever") || lowered.includes("flank pain")) {
-      const feverAsked = coverage.historyTopics["fever or chills"] || false;
-      const flankAsked = coverage.historyTopics["flank pain"] || false;
-      if (!(feverAsked && flankAsked)) {
-        fails.push(failText);
-      }
-      return;
-    }
-
-    if (!coverage.historyTopics[failText.toLowerCase()]) {
-      fails.push(failText);
+    const section = sectionMap.get(key);
+    section.total_points += result.points;
+    if (result.status !== "omitted") {
+      section.available_points += result.points;
+      section.earned_points += result.earned_points;
     }
   });
 
-  return fails;
+  const orderedIds = (sectionDefs || []).map((section) => section.id);
+  const extraIds = Array.from(sectionMap.keys()).filter((id) => !orderedIds.includes(id));
+
+  return [...orderedIds, ...extraIds].map((id) => sectionMap.get(id));
 }
 
-function gradeConversation({ caseData, gradingData, conversation }) {
-  const userText = collectUserText(conversation);
+function findMissedByTag(criteriaResults, tag) {
+  const normalizedTag = normalizeText(tag);
+  return criteriaResults
+    .filter(
+      (criterion) =>
+        criterion.status === "missed" &&
+        Array.isArray(criterion.tags) &&
+        criterion.tags.includes(normalizedTag)
+    )
+    .map((criterion) => criterion.label);
+}
 
+function matchTextItem(text, item, overrideMap) {
+  const key = normalizeText(item);
+  const custom = normalizeKeywords(overrideMap?.[key]);
+  const keywords = custom.length ? custom : keywordsFromPhrase(item);
+  return keywords.length > 0 && includesAny(text, keywords);
+}
+
+function gradeWithoutRubric({ caseData, gradingData, conversation }) {
   const keywordOverrides = gradingData.keyword_overrides || {};
   const historyOverrides = normalizeOverrideMap(keywordOverrides.history_topics);
   const actionOverrides = normalizeOverrideMap(keywordOverrides.actions);
   const redFlagOverrides = normalizeOverrideMap(keywordOverrides.red_flags);
+  const criticalOverrides = normalizeOverrideMap(keywordOverrides.critical_fails);
 
   const historyTopics = gradingData.required_history_topics || [];
   const actions = gradingData.required_actions || [];
   const criticalFails = gradingData.critical_fails || [];
+  const redFlags = caseData?.hidden_truth?.red_flags || [];
 
-  const coverage = {
-    historyTopics: {},
-    actions: {},
-    criticalFails
-  };
+  const userText = collectTextBySource(conversation, "user");
 
-  historyTopics.forEach((topic) => {
-    coverage.historyTopics[topic.toLowerCase()] = topicCovered(userText, topic, historyOverrides);
-  });
-
-  actions.forEach((action) => {
-    coverage.actions[action.toLowerCase()] = actionCovered(userText, action, actionOverrides);
-  });
+  const coveredHistoryCount = historyTopics.filter((topic) =>
+    matchTextItem(userText, topic, historyOverrides)
+  ).length;
+  const coveredActionsCount = actions.filter((action) =>
+    matchTextItem(userText, action, actionOverrides)
+  ).length;
 
   const missedRequiredQuestions = historyTopics.filter(
-    (topic) => !coverage.historyTopics[topic.toLowerCase()]
+    (topic) => !matchTextItem(userText, topic, historyOverrides)
   );
 
-  const redFlags = caseData?.hidden_truth?.red_flags || [];
-  const missedRedFlags = redFlags.filter((flag) => !redFlagCovered(userText, flag, redFlagOverrides));
+  const missedRedFlags = redFlags.filter(
+    (flag) => !matchTextItem(userText, flag, redFlagOverrides)
+  );
+
+  const criticalFailsTriggered = criticalFails.filter(
+    (criterion) => !matchTextItem(userText, criterion, criticalOverrides)
+  );
 
   const scoring = gradingData.scoring || {};
   const historyPoints = Number(scoring.history_topic_points) || 0;
@@ -208,18 +382,21 @@ function gradeConversation({ caseData, gradingData, conversation }) {
   const criticalPenalty = Number(scoring.critical_fail_penalty) || 0;
 
   let score = 0;
-  score += historyTopics.filter((topic) => coverage.historyTopics[topic.toLowerCase()]).length * historyPoints;
-  score += actions.filter((action) => coverage.actions[action.toLowerCase()]).length * actionPoints;
-
-  const triggeredFails = checkCriticalFails(coverage);
-  score -= triggeredFails.length * criticalPenalty;
+  score += coveredHistoryCount * historyPoints;
+  score += coveredActionsCount * actionPoints;
+  score -= criticalFailsTriggered.length * criticalPenalty;
 
   if (score < 0) score = 0;
   if (score > 100) score = 100;
 
+  const passingScore = Number(scoring.passing_score) || 84;
+  const passed = score >= passingScore;
+
   const feedbackParts = [
-    `History topics covered: ${historyTopics.length - missedRequiredQuestions.length}/${historyTopics.length}.`,
-    `Actions covered: ${actions.filter((action) => coverage.actions[action.toLowerCase()]).length}/${actions.length}.`
+    `Legacy checklist score: ${score}%`,
+    `Passing threshold: ${passingScore}%.`,
+    `History topics covered: ${coveredHistoryCount}/${historyTopics.length}.`,
+    `Actions covered: ${coveredActionsCount}/${actions.length}.`
   ];
 
   if (missedRequiredQuestions.length) {
@@ -228,16 +405,109 @@ function gradeConversation({ caseData, gradingData, conversation }) {
   if (missedRedFlags.length) {
     feedbackParts.push(`Missed red flags: ${missedRedFlags.join(", ")}.`);
   }
-  if (triggeredFails.length) {
-    feedbackParts.push(`Critical fails: ${triggeredFails.join(", ")}.`);
+  if (criticalFailsTriggered.length) {
+    feedbackParts.push(`Critical fails: ${criticalFailsTriggered.join(", ")}.`);
   }
 
   return {
     score,
+    passing_score: passingScore,
+    passed,
+    can_unlock_next_case: passed,
+    earned_points: null,
+    available_points: null,
+    total_points: null,
+    omitted_points: 0,
+    section_scores: [],
+    criteria_results: [],
     missed_required_questions: missedRequiredQuestions,
     missed_red_flags: missedRedFlags,
+    critical_fails_triggered: criticalFailsTriggered,
     feedback: feedbackParts.join(" ")
   };
+}
+
+async function gradeWithRubric({ caseData, gradingData, conversation }) {
+  const rubric = gradingData.rubric || {};
+  const criteria = expandCriteriaWithCommon(rubric);
+  const sectionDefs = Array.isArray(rubric.sections) ? rubric.sections : [];
+
+  const llmResults = await evaluateCriteriaWithLlm({ caseData, criteria, conversation });
+
+  const criteriaResults = criteria.map((criterion) =>
+    evaluateCriterion(conversation, criterion, llmResults)
+  );
+
+  const sectionScores = summarizeSections(sectionDefs, criteriaResults);
+
+  const totalPoints = criteriaResults.reduce((sum, item) => sum + item.points, 0);
+  const availablePoints = criteriaResults
+    .filter((item) => item.status !== "omitted")
+    .reduce((sum, item) => sum + item.points, 0);
+  const earnedPoints = criteriaResults.reduce((sum, item) => sum + item.earned_points, 0);
+  const omittedPoints = totalPoints - availablePoints;
+
+  const score = availablePoints > 0 ? Math.round((earnedPoints / availablePoints) * 100) : 0;
+  const passingScore = Number(rubric.passing_score || gradingData?.scoring?.passing_score || 84);
+  const passed = score >= passingScore;
+
+  const missedRequiredQuestions = findMissedByTag(criteriaResults, "required_history");
+  const missedRedFlags = findMissedByTag(criteriaResults, "red_flag");
+  const criticalFailsTriggered = findMissedByTag(criteriaResults, "critical_fail");
+
+  const feedbackParts = [
+    `CPI rubric score: ${score}% (${earnedPoints}/${availablePoints} available points).`,
+    `Passing threshold: ${passingScore}%.`
+  ];
+
+  if (omittedPoints > 0) {
+    feedbackParts.push(`Omitted criteria points removed from denominator: ${omittedPoints}.`);
+  }
+
+  const missedCount = criteriaResults.filter((item) => item.status === "missed").length;
+  feedbackParts.push(`Criteria met: ${criteriaResults.length - missedCount}/${criteriaResults.length}.`);
+
+  if (missedRequiredQuestions.length > 0) {
+    feedbackParts.push(`Missed required history items: ${missedRequiredQuestions.join(", ")}.`);
+  }
+  if (missedRedFlags.length > 0) {
+    feedbackParts.push(`Missed red flags: ${missedRedFlags.join(", ")}.`);
+  }
+  if (criticalFailsTriggered.length > 0) {
+    feedbackParts.push(`Critical fails: ${criticalFailsTriggered.join(", ")}.`);
+  }
+
+  return {
+    score,
+    passing_score: passingScore,
+    passed,
+    can_unlock_next_case: passed,
+    earned_points: roundTo(earnedPoints),
+    available_points: roundTo(availablePoints),
+    total_points: roundTo(totalPoints),
+    omitted_points: roundTo(omittedPoints),
+    section_scores: sectionScores.map((section) => ({
+      ...section,
+      earned_points: roundTo(section.earned_points),
+      available_points: roundTo(section.available_points),
+      total_points: roundTo(section.total_points)
+    })),
+    criteria_results: criteriaResults,
+    missed_required_questions: missedRequiredQuestions,
+    missed_red_flags: missedRedFlags,
+    critical_fails_triggered: criticalFailsTriggered,
+    feedback: feedbackParts.join(" ")
+  };
+}
+
+async function gradeConversation({ caseData, gradingData, conversation }) {
+  const safeConversation = Array.isArray(conversation) ? conversation : [];
+
+  if (gradingData?.rubric?.criteria?.length || gradingData?.rubric?.common_criteria?.length) {
+    return gradeWithRubric({ caseData, gradingData, conversation: safeConversation });
+  }
+
+  return gradeWithoutRubric({ caseData, gradingData, conversation: safeConversation });
 }
 
 module.exports = { gradeConversation };

@@ -22,7 +22,7 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
-    const result = gradeConversation({
+    const result = await gradeConversation({
       caseData,
       gradingData,
       conversation

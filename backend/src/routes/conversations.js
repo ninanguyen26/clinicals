@@ -190,10 +190,32 @@ router.post("/:id/submit", async (req, res, next) => {
     }
 
     if (conversation.submission) {
+      const savedDetails = conversation.submission.details || {};
+      const passingScore = Number(savedDetails.passing_score || 84);
+      const passed =
+        typeof savedDetails.passed === "boolean"
+          ? savedDetails.passed
+          : conversation.submission.score >= passingScore;
+
       res.json({
         score: conversation.submission.score,
         feedback: conversation.submission.feedback,
-        details: conversation.submission.details
+        passing_score: passingScore,
+        passed,
+        can_unlock_next_case:
+          typeof savedDetails.can_unlock_next_case === "boolean"
+            ? savedDetails.can_unlock_next_case
+            : passed,
+        earned_points: savedDetails.earned_points ?? null,
+        available_points: savedDetails.available_points ?? null,
+        total_points: savedDetails.total_points ?? null,
+        omitted_points: savedDetails.omitted_points ?? 0,
+        section_scores: savedDetails.section_scores || [],
+        criteria_results: savedDetails.criteria_results || [],
+        missed_required_questions: savedDetails.missed_required_questions || [],
+        missed_red_flags: savedDetails.missed_red_flags || [],
+        critical_fails_triggered: savedDetails.critical_fails_triggered || [],
+        details: savedDetails
       });
       return;
     }
@@ -214,7 +236,7 @@ router.post("/:id/submit", async (req, res, next) => {
       content: msg.content
     }));
 
-    const result = gradeConversation({
+    const result = await gradeConversation({
       caseData,
       gradingData,
       conversation: conversationPayload
@@ -234,8 +256,18 @@ router.post("/:id/submit", async (req, res, next) => {
         score: result.score,
         feedback: result.feedback,
         details: {
+          passing_score: result.passing_score,
+          passed: result.passed,
+          can_unlock_next_case: result.can_unlock_next_case,
+          earned_points: result.earned_points ?? null,
+          available_points: result.available_points ?? null,
+          total_points: result.total_points ?? null,
+          omitted_points: result.omitted_points ?? 0,
+          section_scores: result.section_scores || [],
+          criteria_results: result.criteria_results || [],
           missed_required_questions: result.missed_required_questions,
-          missed_red_flags: result.missed_red_flags
+          missed_red_flags: result.missed_red_flags,
+          critical_fails_triggered: result.critical_fails_triggered || []
         }
       }
     });
