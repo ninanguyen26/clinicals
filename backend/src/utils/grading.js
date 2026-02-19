@@ -1,5 +1,6 @@
 const { createRubricEval } = require("../llm/navigatorClient");
 const { expandCriteriaWithCommon } = require("./rubricCommon");
+const { validateAndNormalizeRubricLlmOutput } = require("./llmRubricSchema");
 
 function normalizeText(text) {
   return String(text || "")
@@ -92,13 +93,29 @@ function evaluateRule(text, rule) {
     evidence.push(...matchedAny.slice(0, 3));
   }
 
-  if (groups.length > 0) {
+    if (groups.length > 0) {
+    const minGroupsMatchedRaw = rule?.min_groups_matched;
+    const minGroupsMatched = Number.isFinite(Number(minGroupsMatchedRaw))
+      ? Number(minGroupsMatchedRaw)
+      : null;
+
+    let matchedCount = 0;
+
     for (const group of groups) {
       const matched = group.find((keyword) => text.includes(keyword));
-      if (!matched) {
+
+      if (matched) {
+        matchedCount += 1;
+        evidence.push(matched);
+      } else if (minGroupsMatched === null) {
+        // require ALL groups unless a threshold is specified
         return { matched: false, evidence: [] };
       }
-      evidence.push(matched);
+    }
+
+    // if threshold specified, require at least that many groups to match
+    if (minGroupsMatched !== null && matchedCount < minGroupsMatched) {
+      return { matched: false, evidence: [] };
     }
   }
 
@@ -158,7 +175,9 @@ function describeRuleForLlm(rule) {
   return parts.join(" ");
 }
 
+// calls LLM to evaluate rubric criteria and validates its output
 async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
+  // only LLM-enabled criteria
   const llmCriteria = criteria.filter(
     (criterion) =>
       criterion.enabled !== false &&
@@ -184,14 +203,18 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
     .join("\n");
 
   const transcript = buildConversationTranscript(conversation);
-
+    
+  // prevent free-form responses
   const systemPrompt = [
     "You are a strict clinical OSCE rubric grader.",
-    "Evaluate each criterion as met or missed using ONLY the conversation transcript.",
-    "Do not infer facts that were not said; if unsure, mark missed.",
-    "Paraphrases count when they are clearly equivalent to the criterion guidance.",
-    "Return only JSON with this schema:",
-    '{"results":[{"id":"criterion_id","status":"met|missed","evidence":"short quote or summary"}]}'
+    "Evaluate each criterion using ONLY the conversation transcript.",
+    "Do not infer facts that were not said; if unsure, mark not_met.",
+    "Paraphrases count when clearly equivalent to the criterion guidance.",
+    "Return ONLY valid JSON. No markdown. No extra keys.",
+    "Allowed statuses: met, partially_met, not_met.",
+    "Do NOT output omitted. Do NOT invent ids.",
+    "Schema:",
+    '{"results":[{"id":"criterion_id","status":"met|partially_met|not_met","earned_points":0,"evidence":["..."],"rationale":"..."}]}'
   ].join(" ");
 
   const userPrompt = [
@@ -205,22 +228,13 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
   try {
     const response = await createRubricEval({ systemPrompt, userPrompt });
     const parsed = extractJsonObject(response);
-    const rows = Array.isArray(parsed?.results) ? parsed.results : [];
 
-    const resultMap = new Map();
-    rows.forEach((row) => {
-      const id = String(row?.id || "").trim();
-      const status = normalizeText(row?.status);
-      if (!id || (status !== "met" && status !== "missed")) return;
+    const { normalizedResultsById } = validateAndNormalizeRubricLlmOutput(parsed, llmCriteria);
 
-      resultMap.set(id, {
-        status,
-        evidence: String(row?.evidence || "").trim()
-      });
-    });
-
-    return resultMap;
-  } catch {
+    // Map(id -> {status, earned_points, evidence[], rationale})
+    return normalizedResultsById;
+  } catch (err) {
+    console.error("Error evaluating LLM criteria:", err);
     return new Map();
   }
 }
@@ -245,29 +259,74 @@ function evaluateCriterion(conversation, criterion, llmResults) {
       earned_points: 0,
       status: "omitted",
       omit_reason: criterion.omit_reason || "Marked not applicable for this case",
-      evidence: []
+      evidence: [],
+      rationale: null
     };
   }
 
   const mode = criterion.mode || "rule";
   const text = collectTextBySource(conversation, criterion.source || "user");
 
-  if ((mode === "llm" || mode === "llm_or_rule") && llmResults?.has(criterion.id)) {
-    const llm = llmResults.get(criterion.id);
-    const matched = llm.status === "met";
+  if (mode === "llm" || mode === "llm_or_rule") {
+    if (llmResults?.has(criterion.id)) {
+      const llm = llmResults.get(criterion.id);
+
+      const status =
+        llm.status === "met"
+          ? "met"
+          : llm.status === "partially_met"
+          ? "partially_met"
+          : "missed"; // not_met -> missed 
+
+      return {
+        id: criterion.id,
+        section: criterion.section,
+        label: criterion.label || criterion.id,
+        tags,
+        points,
+        earned_points: Number(llm.earned_points) || 0,
+        status,
+        omit_reason: null,
+        evidence: Array.isArray(llm.evidence) ? llm.evidence : [],
+        rationale: llm.rationale || null
+      };
+    }
+
+    // missing LLM result -> fallback behavior
+    if (mode === "llm_or_rule") {
+      const fallbackRule = criterion.fallback_rule || criterion.rule || {};
+      const ruleResult = evaluateRule(text, fallbackRule);
+
+      return {
+        id: criterion.id,
+        section: criterion.section,
+        label: criterion.label || criterion.id,
+        tags,
+        points,
+        earned_points: ruleResult.matched ? points : 0,
+        status: ruleResult.matched ? "met" : "missed",
+        omit_reason: null,
+        evidence: ruleResult.evidence,
+        rationale: "Fallback rule used (LLM missing result)."
+      };
+    }
+
+    // mode === "llm" only
     return {
       id: criterion.id,
       section: criterion.section,
       label: criterion.label || criterion.id,
       tags,
       points,
-      earned_points: matched ? points : 0,
-      status: matched ? "met" : "missed",
+      earned_points: 0,
+      status: "missed",
       omit_reason: null,
-      evidence: llm.evidence ? [llm.evidence] : []
+      evidence: [],
+      rationale: "LLM missing result."
     };
   }
 
+  // rule-only path
   const fallbackRule = criterion.fallback_rule || criterion.rule || {};
   const ruleResult = evaluateRule(text, fallbackRule);
 
@@ -280,7 +339,8 @@ function evaluateCriterion(conversation, criterion, llmResults) {
     earned_points: ruleResult.matched ? points : 0,
     status: ruleResult.matched ? "met" : "missed",
     omit_reason: null,
-    evidence: ruleResult.evidence
+    evidence: ruleResult.evidence,
+    rationale: null
   };
 }
 
@@ -329,7 +389,8 @@ function findMissedByTag(criteriaResults, tag) {
   return criteriaResults
     .filter(
       (criterion) =>
-        criterion.status === "missed" &&
+        // partial == “missed” for required/red-flag lists
+        (criterion.status === "missed" || criterion.status === "partially_met") &&
         Array.isArray(criterion.tags) &&
         criterion.tags.includes(normalizedTag)
     )

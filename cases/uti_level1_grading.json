@@ -72,13 +72,18 @@
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history"],
-        "prompt_hint": "Student elicits at least 4 OLDCARTS elements relevant to this UTI case (onset, location, duration, character, severity, timing, radiation, and what was tried/modifying factors).",
+        "prompt_hint": "Student elicits at least 5 OLDCARTS elements relevant to this UTI case (onset, location, duration, character, severity, timing, radiation, and what was tried/modifying factors).",
         "rule": {
+          "min_groups_matched": 5,
           "groups": [
-            ["onset", "when did", "started", "began", "how long", "duration"],
-            ["location", "where", "genital", "abdominal", "abdomen", "back", "flank"],
-            ["character", "sharp", "burning", "pain type", "severity", "scale", "/10"],
-            ["timing", "radiation", "spread", "worse", "better", "what have you tried", "treatment", "modifying"]
+            ["onset", "when did", "started", "began"],
+            ["location", "where", "genital", "abdomen", "flank", "back"],
+            ["duration", "how long"],
+            ["character", "burning", "sharp"],
+            ["severity", "scale", "/10", "0 to 10", "1 to 10"],
+            ["timing", "constant", "intermittent", "end of urination", "at the end", "at the end of urination"],
+            ["radiation", "spread"],
+            ["treatment", "tried", "what have you tried", "better", "worse", "water", "drinking"]
           ]
         }
       },
