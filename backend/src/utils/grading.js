@@ -128,19 +128,16 @@ function evaluateRule(text, rule) {
 
 function extractJsonObject(text) {
   if (!text) return null;
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const raw = fenced ? fenced[1] : text;
 
-  const firstBrace = raw.indexOf("{");
-  const lastBrace = raw.lastIndexOf("}");
-  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-    return null;
-  }
+  const cleaned = text
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
 
-  const candidate = raw.slice(firstBrace, lastBrace + 1);
   try {
-    return JSON.parse(candidate);
-  } catch {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    console.error("JSON parse failed:", err);
     return null;
   }
 }
@@ -177,6 +174,8 @@ function describeRuleForLlm(rule) {
 
 // calls LLM to evaluate rubric criteria and validates its output
 async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
+  console.log(">>> LLM GRADING CALLED!!!!!!!!");
+
   // only LLM-enabled criteria
   const llmCriteria = criteria.filter(
     (criterion) =>
@@ -205,17 +204,39 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
   const transcript = buildConversationTranscript(conversation);
     
   // prevent free-form responses
-  const systemPrompt = [
-    "You are a strict clinical OSCE rubric grader.",
-    "Evaluate each criterion using ONLY the conversation transcript.",
-    "Do not infer facts that were not said; if unsure, mark not_met.",
-    "Paraphrases count when clearly equivalent to the criterion guidance.",
-    "Return ONLY valid JSON. No markdown. No extra keys.",
-    "Allowed statuses: met, partially_met, not_met.",
-    "Do NOT output omitted. Do NOT invent ids.",
-    "Schema:",
-    '{"results":[{"id":"criterion_id","status":"met|partially_met|not_met","earned_points":0,"evidence":["..."],"rationale":"..."}]}'
-  ].join(" ");
+  const systemPrompt = `
+    You are a strict clinical OSCE rubric grader.
+
+    Evaluate each criterion using ONLY the transcript.
+    Do NOT infer missing information.
+    If not explicitly stated, mark as "not_met".
+
+    Return STRICT JSON only.
+    No markdown.
+    No commentary.
+    No extra keys.
+
+    You MUST return this exact schema:
+
+    {
+      "results": [
+        {
+          "id": "criterion_id",
+          "status": "met | partially_met | not_met",
+          "earned_points": number,
+          "evidence": ["exact quote from transcript"],
+          "rationale": "brief reason"
+        }
+      ]
+    }
+
+    Rules:
+    - Include ALL criteria listed.
+    - Do NOT invent ids.
+    - earned_points must be 0 if status is not_met.
+    - earned_points must equal full points if status is met.
+    - partially_met must be between 0 and full points.
+  `;
 
   const userPrompt = [
     `Case ID: ${caseData?.case_id || "unknown"}`,
@@ -228,6 +249,11 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
   try {
     const response = await createRubricEval({ systemPrompt, userPrompt });
     const parsed = extractJsonObject(response);
+    console.log("PARSED:", parsed);
+
+    if (!parsed) {
+      console.error("LLM response:", response);
+    }
 
     const { normalizedResultsById } = validateAndNormalizeRubricLlmOutput(parsed, llmCriteria);
 
@@ -268,6 +294,9 @@ function evaluateCriterion(conversation, criterion, llmResults) {
   const text = collectTextBySource(conversation, criterion.source || "user");
 
   if (mode === "llm" || mode === "llm_or_rule") {
+    // console.log("Checking ID:", criterion.id);
+    // console.log("LLM Map Keys:", Array.from(llmResults.keys()));
+
     if (llmResults?.has(criterion.id)) {
       const llm = llmResults.get(criterion.id);
 

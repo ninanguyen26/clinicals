@@ -79,7 +79,7 @@ async function createRubricEval({ systemPrompt, userPrompt }) {
   return callNavigatorChat({
     model: gradingModel,
     temperature: 0,
-    maxTokens: 1000,
+    maxTokens: 3000,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }
