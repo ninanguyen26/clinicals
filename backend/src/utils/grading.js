@@ -255,10 +255,19 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
       console.error("LLM response:", response);
     }
 
-    const { normalizedResultsById } = validateAndNormalizeRubricLlmOutput(parsed, llmCriteria);
+    const { ok, normalizedResultsById, errors } =
+      validateAndNormalizeRubricLlmOutput(parsed, llmCriteria);
 
-    // Map(id -> {status, earned_points, evidence[], rationale})
+    if (!ok) {
+      console.error("LLM rubric output failed validation:", errors);
+      // choose:
+      // - return new Map() to force llm_or_rule to fallback to rules -> this one - safer, but strictrer
+      // - OR keep partial results (normalizedResultsById) -> more forgiving, but risks LLM errors causing false positives
+      return new Map();
+    }
+
     return normalizedResultsById;
+
   } catch (err) {
     console.error("Error evaluating LLM criteria:", err);
     return new Map();
