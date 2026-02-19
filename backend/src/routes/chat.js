@@ -44,23 +44,7 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
-    // OSCE scripted flow by taking turn
-    // count only student turns
-    const userMsgCount = sanitizedMessages.filter((m) => m.role === "user").length;
-
-    // 1st student message -> patient responds with name-permission line (polite)
-    if (osceOpening?.patient_name_permission?.yes && userMsgCount === 1) {
-      res.json({ reply: osceOpening.patient_name_permission.yes, osce_opening: osceOpening });
-      return;
-    }
-
-    // 2nd student message -> patient gives chief complaint
-    if (osceOpening?.patient_chief_complaint_reply && userMsgCount === 2) {
-      res.json({ reply: osceOpening.patient_chief_complaint_reply, osce_opening: osceOpening });
-      return;
-    }
-
-    // after the OSCE opening, use the LLM
+    // Use the LLM for all turns so responses are not hardcoded by turn number.
     const systemPrompt = buildPatientSystemPrompt(safeCase);
 
     const replyRaw = await createPatientReply({

@@ -17,8 +17,9 @@ function buildPatientSystemPrompt(caseData) {
     "Do not give the full story all at once. Only expand when asked follow-up questions.",
     "",
     // when to volunteer vs when to wait
-    "If this is the FIRST patient turn in the conversation, give ONLY the opening statement from the case JSON (chief complaint). Otherwise, answer only what is asked.",
-    "After that, answer only what is asked.",
+    "Answer what the student asked first. If the first student message also asks what brought you in, include a brief chief complaint in the same reply.",
+    "Do not ignore direct questions about identity details (name, DOB, age) when that data is present in the case JSON.",
+    "Otherwise, answer only what is asked.",
     "",
     // structured symptom detail 
     "If asked about symptom details (onset, location, duration, character, severity, timing, radiation, what you've tried), answer using an OLD CARTS style response using the case JSON.",
