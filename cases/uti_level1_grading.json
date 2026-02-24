@@ -37,10 +37,6 @@
         "id": "professional_preferred_name",
         "points": 0.5
       },
-      {
-        "id": "professional_opening_question",
-        "points": 0.5
-      },
       "professional_identity_two_identifiers"
     ],
     "criteria": [
@@ -51,6 +47,41 @@
         "points": 1,
         "enabled": false,
         "omit_reason": "Omitted for this CPI1 UTI station because location/jurisdiction/technology contingency scripting is not consistently required in the provided case packet."
+      },
+      {
+        "id": "professional_communication_humanism",
+        "section": "professional",
+        "label": "Demonstrates professional communication and humanistic rapport",
+        "points": 0.5,
+        "source": "all",
+        "mode": "llm_or_rule",
+        "tags": ["professional"],
+        "prompt_hint": "Judge transcript-level professionalism and humanistic communication: respectful language, appropriate interview flow (open then focused questions), avoids unnecessary repetition/jargon, and shows empathy/consideration. Only score elements observable in text; do not score visual-only behaviors such as appearance, eye contact, posture, or camera setup.",
+        "fallback_rule": {
+          "groups": [
+            ["what brings you", "how can i help", "tell me more", "can you describe"],
+            ["thank you", "i understand", "i'm sorry", "that sounds", "appreciate you sharing"]
+          ],
+          "min_groups_matched": 1
+        }
+      },
+      {
+        "id": "reporter_chief_complaint",
+        "section": "reporter",
+        "label": "Elicits chief complaint with an open-ended question",
+        "points": 0.5,
+        "source": "user",
+        "mode": "llm_or_rule",
+        "tags": ["required_history"],
+        "prompt_hint": "Student invites the chief complaint using an open-ended opener such as 'What brings you in today?' or 'How can I help you today?'.",
+        "rule": {
+          "any": [
+            "how can i help you today",
+            "what brings you in today",
+            "what brings you today",
+            "what brings you in"
+          ]
+        }
       },
       {
         "id": "reporter_onset_duration",
@@ -68,7 +99,7 @@
         "id": "reporter_oldcarts_bundle",
         "section": "reporter",
         "label": "Elicits OLDCARTS symptom detail bundle",
-        "points": 2,
+        "points": 1,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history"],
@@ -84,6 +115,28 @@
             ["timing", "constant", "intermittent", "end of urination", "at the end", "at the end of urination"],
             ["radiation", "spread"],
             ["treatment", "tried", "what have you tried", "better", "worse", "water", "drinking"]
+          ]
+        }
+      },
+      {
+        "id": "reporter_hpi_summary_oldcarts",
+        "section": "reporter",
+        "label": "HPI summary includes OLDCARTS-focused presenting illness synthesis",
+        "points": 2,
+        "source": "hpi",
+        "mode": "llm_or_rule",
+        "tags": ["required_history"],
+        "prompt_hint": "Evaluate the student-written end-of-case HPI summary. Award full credit when the HPI is a coherent 4-5 sentence presenting illness summary that captures at least 5 OLDCARTS-relevant elements for this UTI complaint.",
+        "rule": {
+          "min_groups_matched": 5,
+          "groups": [
+            ["onset", "started", "began", "for 2 days", "two days", "x2 days"],
+            ["urination", "urinary", "dysuria", "burning", "genital"],
+            ["duration", "during urination", "while urinating", "intermittent", "constant"],
+            ["character", "sharp", "burning pain", "pain with urination"],
+            ["severity", "/10", "2-3", "2/10", "3/10", "mild"],
+            ["timing", "today", "since", "worse", "first noticed"],
+            ["tried", "hydration", "water", "modifying factors", "nothing else"]
           ]
         }
       },
@@ -210,7 +263,7 @@
         "id": "reporter_hydration_context",
         "section": "reporter",
         "label": "Assesses hydration/caffeine context",
-        "points": 2,
+        "points": 0.5,
         "source": "user",
         "mode": "llm_or_rule",
         "rule": {

@@ -1,4 +1,23 @@
 const DEFAULT_BASE_URL = "https://api.ai.it.ufl.edu";
+const DEFAULT_CHAT_TIMEOUT_MS = 30000;
+const DEFAULT_GRADING_TIMEOUT_MS = 180000;
+
+function readTimeoutMs(raw, fallback) {
+  if (Number.isFinite(raw) && raw > 0) {
+    return raw;
+  }
+  return fallback;
+}
+
+function getChatTimeoutMs() {
+  const raw = Number(process.env.NAVIGATOR_CHAT_TIMEOUT_MS || process.env.NAVIGATOR_TIMEOUT_MS);
+  return readTimeoutMs(raw, DEFAULT_CHAT_TIMEOUT_MS);
+}
+
+function getGradingTimeoutMs() {
+  const raw = Number(process.env.NAVIGATOR_GRADING_TIMEOUT_MS || process.env.NAVIGATOR_TIMEOUT_MS);
+  return readTimeoutMs(raw, DEFAULT_GRADING_TIMEOUT_MS);
+}
 
 function getNavigatorConfig() {
   const apiKey = process.env.NAVIGATOR_API_KEY;
@@ -26,7 +45,8 @@ async function callNavigatorChat({
   messages,
   temperature = 0.4,
   maxTokens = 250,
-  stop = null
+  stop = null,
+  timeoutMs = DEFAULT_CHAT_TIMEOUT_MS
 }) {
   const { apiKey, baseUrl } = getNavigatorConfig();
 
@@ -41,14 +61,28 @@ async function callNavigatorChat({
     payload.stop = stop;
   }
 
-  const response = await fetch(`${baseUrl}/v1/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+
+  try {
+    response = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error(`NaviGator API timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -69,6 +103,7 @@ async function createPatientReply({ systemPrompt, messages }) {
     model: chatModel,
     temperature: 0.4,
     maxTokens: 250,
+    timeoutMs: getChatTimeoutMs(),
     stop: ["\nuser", "\nUser", "\nassistant", "\nAssistant"],
     messages: [{ role: "system", content: systemPrompt }, ...messages]
   });
@@ -80,6 +115,7 @@ async function createRubricEval({ systemPrompt, userPrompt }) {
     model: gradingModel,
     temperature: 0,
     maxTokens: 3000,
+    timeoutMs: getGradingTimeoutMs(),
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }

@@ -169,6 +169,12 @@ async function updateUserProgress(userId, score) {
 
 router.post("/:id/submit", async (req, res, next) => {
   try {
+    const { hpi } = req.body || {};
+    if (hpi != null && typeof hpi !== "string") {
+      res.status(400).json({ error: "hpi must be a string when provided" });
+      return;
+    }
+
     const user = await resolveUser(req);
     const conversation = await prisma.conversation.findUnique({
       where: { id: req.params.id },
@@ -239,7 +245,10 @@ router.post("/:id/submit", async (req, res, next) => {
     const result = await gradeConversation({
       caseData,
       gradingData,
-      conversation: conversationPayload
+      conversation: conversationPayload,
+      supplementalInputs: {
+        hpi: String(hpi || "").trim()
+      }
     });
 
     await prisma.conversation.update({
@@ -263,6 +272,7 @@ router.post("/:id/submit", async (req, res, next) => {
           available_points: result.available_points ?? null,
           total_points: result.total_points ?? null,
           omitted_points: result.omitted_points ?? 0,
+          hpi: String(hpi || "").trim() || null,
           section_scores: result.section_scores || [],
           criteria_results: result.criteria_results || [],
           missed_required_questions: result.missed_required_questions,

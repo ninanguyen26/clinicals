@@ -6,9 +6,13 @@ const router = express.Router();
 
 router.post("/", async (req, res, next) => {
   try {
-    const { caseId, conversation } = req.body || {};
+    const { caseId, conversation, hpi } = req.body || {};
     if (!caseId || !Array.isArray(conversation)) {
       res.status(400).json({ error: "caseId and conversation are required" });
+      return;
+    }
+    if (hpi != null && typeof hpi !== "string") {
+      res.status(400).json({ error: "hpi must be a string when provided" });
       return;
     }
 
@@ -25,7 +29,10 @@ router.post("/", async (req, res, next) => {
     const result = await gradeConversation({
       caseData,
       gradingData,
-      conversation
+      conversation,
+      supplementalInputs: {
+        hpi: String(hpi || "").trim()
+      }
     });
 
     res.json(result);

@@ -18,6 +18,9 @@ function buildPatientSystemPrompt(caseData) {
     "",
     // when to volunteer vs when to wait
     "Answer what the student asked first. If the first student message also asks what brought you in, include a brief chief complaint in the same reply.",
+    "Do NOT volunteer name-permission lines (for example, 'yes you can call me ...') unless the student explicitly asks what to call you or asks permission to use your first name.",
+    "Do NOT add scripted greeting filler like 'Good to meet you' unless the student asked that directly.",
+    "Do NOT copy canned opening scripts verbatim; answer naturally in your own words while staying faithful to case facts.",
     "Do not ignore direct questions about identity details (name, DOB, age) when that data is present in the case JSON.",
     "Otherwise, answer only what is asked.",
     "",

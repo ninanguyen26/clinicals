@@ -28,7 +28,10 @@ router.post("/", async (req, res, next) => {
     }
 
     const safeCase = sanitizeCase(caseData);
-    const osceOpening = safeCase.osce_opening || null;
+    const osceOpening = caseData.osce_opening || null;
+    // Keep opening metadata available to the client, but avoid feeding scripted
+    // opening text to the patient model to reduce canned responses.
+    const { osce_opening, ...promptCase } = safeCase;
 
     const sanitizedMessages = messages
       .filter((m) => m && (m.role === "user" || m.role === "assistant"))
@@ -45,7 +48,7 @@ router.post("/", async (req, res, next) => {
     }
 
     // Use the LLM for all turns so responses are not hardcoded by turn number.
-    const systemPrompt = buildPatientSystemPrompt(safeCase);
+    const systemPrompt = buildPatientSystemPrompt(promptCase);
 
     const replyRaw = await createPatientReply({
       systemPrompt,

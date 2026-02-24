@@ -2,6 +2,17 @@ const { createRubricEval } = require("../llm/navigatorClient");
 const { expandCriteriaWithCommon } = require("./rubricCommon");
 const { validateAndNormalizeRubricLlmOutput } = require("./llmRubricSchema");
 
+function envFlagEnabled(value) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+const GRADING_DEBUG = envFlagEnabled(process.env.GRADING_DEBUG);
+
+function debugLog(...args) {
+  if (!GRADING_DEBUG) return;
+  console.log("[grading]", ...args);
+}
+
 function normalizeText(text) {
   return String(text || "")
     .toLowerCase()
@@ -52,21 +63,54 @@ function roundTo(value, decimals = 2) {
   return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
 }
 
-function collectTextBySource(conversation, source) {
+function normalizeSupplementalInputs(supplementalInputs) {
+  if (!supplementalInputs || typeof supplementalInputs !== "object") {
+    return {};
+  }
+
+  const normalized = {};
+  Object.entries(supplementalInputs).forEach(([key, value]) => {
+    const sourceKey = String(key || "").trim().toLowerCase();
+    if (!sourceKey) return;
+
+    const text = String(value || "").trim();
+    if (!text) return;
+
+    normalized[sourceKey] = text;
+  });
+
+  return normalized;
+}
+
+function collectRawTextBySource(conversation, source, supplementalInputs = {}) {
   const target = source || "user";
+
+  if (typeof target === "string") {
+    const sourceKey = target.trim().toLowerCase();
+    if (sourceKey && sourceKey !== "all" && sourceKey in supplementalInputs) {
+      return String(supplementalInputs[sourceKey] || "").trim();
+    }
+  }
+
   if (target === "all") {
-    return normalizeText((conversation || []).map((message) => message?.content || "").join(" "));
+    return (conversation || [])
+      .map((message) => String(message?.content || "").trim())
+      .filter(Boolean)
+      .join(" ");
   }
 
   const allowedRoles = Array.isArray(target) ? target : [target];
   const roleSet = new Set(allowedRoles.map((role) => String(role).toLowerCase()));
 
-  return normalizeText(
-    (conversation || [])
-      .filter((message) => message && roleSet.has(String(message.role || "").toLowerCase()))
-      .map((message) => message.content || "")
-      .join(" ")
-  );
+  return (conversation || [])
+    .filter((message) => message && roleSet.has(String(message.role || "").toLowerCase()))
+    .map((message) => String(message.content || "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function collectTextBySource(conversation, source, supplementalInputs = {}) {
+  return normalizeText(collectRawTextBySource(conversation, source, supplementalInputs));
 }
 
 function evaluateRule(text, rule) {
@@ -137,7 +181,8 @@ function extractJsonObject(text) {
   try {
     return JSON.parse(cleaned);
   } catch (err) {
-    console.error("JSON parse failed:", err);
+    console.error("Failed to parse LLM rubric JSON response.");
+    debugLog("JSON parse error:", err);
     return null;
   }
 }
@@ -173,9 +218,7 @@ function describeRuleForLlm(rule) {
 }
 
 // calls LLM to evaluate rubric criteria and validates its output
-async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
-  console.log(">>> LLM GRADING CALLED!!!!!!!!");
-
+async function evaluateCriteriaWithLlm({ caseData, criteria, conversation, supplementalInputs }) {
   // only LLM-enabled criteria
   const llmCriteria = criteria.filter(
     (criterion) =>
@@ -184,8 +227,13 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
   );
 
   if (!llmCriteria.length) {
+    debugLog("No LLM criteria enabled; skipping model rubric evaluation.");
     return new Map();
   }
+
+  debugLog(
+    `Evaluating ${llmCriteria.length} LLM criteria for case ${caseData?.case_id || "unknown"}.`
+  );
 
   const criteriaPrompt = llmCriteria
     .map((criterion) => {
@@ -202,14 +250,31 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
     .join("\n");
 
   const transcript = buildConversationTranscript(conversation);
+  const sourceViews = {
+    user: collectRawTextBySource(conversation, "user", supplementalInputs),
+    assistant: collectRawTextBySource(conversation, "assistant", supplementalInputs),
+    all: collectRawTextBySource(conversation, "all", supplementalInputs)
+  };
+
+  const sourceViewBlock = Object.entries(sourceViews)
+    .map(([source, text]) => `- source: ${source}\n  text: ${String(text || "").trim() || "(none)"}`)
+    .join("\n");
+
+  const supplementalInputBlock = Object.entries(supplementalInputs || {})
+    .map(([source, text]) => `- source: ${source}\n  text: ${String(text || "").trim()}`)
+    .join("\n");
     
   // prevent free-form responses
   const systemPrompt = `
     You are a strict clinical OSCE rubric grader.
 
-    Evaluate each criterion using ONLY the transcript.
+    Evaluate each criterion using ONLY the provided transcript and supplemental inputs.
     Do NOT infer missing information.
     If not explicitly stated, mark as "not_met".
+
+    Source handling:
+    - If criterion source is user/assistant/all, use the Transcript section.
+    - If criterion source is a custom source (example: hpi), use matching text from Supplemental Inputs.
 
     Return STRICT JSON only.
     No markdown.
@@ -233,6 +298,14 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
     Rules:
     - Include ALL criteria listed.
     - Do NOT invent ids.
+    - Respect each criterion's source strictly:
+      - source=user -> use student/user text only.
+      - source=assistant -> use patient/assistant text only.
+      - source=all -> use full transcript.
+      - custom sources (e.g., hpi) -> use matching Supplemental Inputs text only.
+    - Evidence quotes must come from that criterion's source text only.
+    - For status met/partially_met, include 1-2 short exact quotes from source text.
+    - If you cannot quote source text for that criterion, mark not_met.
     - earned_points must be 0 if status is not_met.
     - earned_points must equal full points if status is met.
     - partially_met must be between 0 and full points.
@@ -242,24 +315,30 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation }) {
     `Case ID: ${caseData?.case_id || "unknown"}`,
     "Criteria:",
     criteriaPrompt,
+    "Source Views:",
+    sourceViewBlock,
     "Transcript:",
-    transcript
+    transcript,
+    "Supplemental Inputs:",
+    supplementalInputBlock || "- none"
   ].join("\n\n");
 
   try {
     const response = await createRubricEval({ systemPrompt, userPrompt });
     const parsed = extractJsonObject(response);
-    console.log("PARSED:", parsed);
+    debugLog("Parsed LLM rubric payload:", parsed);
 
     if (!parsed) {
-      console.error("LLM response:", response);
+      console.error("LLM rubric response was not valid JSON; falling back.");
+      debugLog("Raw LLM response:", response);
     }
 
     const { ok, normalizedResultsById, errors } =
       validateAndNormalizeRubricLlmOutput(parsed, llmCriteria);
 
     if (!ok) {
-      console.error("LLM rubric output failed validation:", errors);
+      console.error("LLM rubric output failed validation; falling back.");
+      debugLog("LLM rubric validation errors:", errors);
       // choose:
       // - return new Map() to force llm_or_rule to fallback to rules -> this one - safer, but strictrer
       // - OR keep partial results (normalizedResultsById) -> more forgiving, but risks LLM errors causing false positives
@@ -279,7 +358,71 @@ function normalizeTags(tags) {
   return tags.map((tag) => normalizeText(tag)).filter(Boolean);
 }
 
-function evaluateCriterion(conversation, criterion, llmResults) {
+function llmStatusNeedsEvidence(status) {
+  return status === "met" || status === "partially_met";
+}
+
+function normalizeEvidenceList(evidenceList) {
+  if (!Array.isArray(evidenceList)) return [];
+  return evidenceList
+    .map((snippet) => String(snippet || "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function splitEvidenceBySourceMatch(sourceText, evidenceList) {
+  const normalizedSource = normalizeText(sourceText);
+  const evidence = normalizeEvidenceList(evidenceList);
+  const matched = [];
+  const unmatched = [];
+
+  if (!normalizedSource || evidence.length === 0) {
+    return { matched, unmatched: evidence };
+  }
+
+  evidence.forEach((snippet) => {
+    const normalizedSnippet = normalizeText(snippet);
+    // Ignore tiny tokens that can falsely match almost anything.
+    if (normalizedSnippet.length < 6) return;
+
+    if (normalizedSource.includes(normalizedSnippet)) {
+      matched.push(snippet);
+    } else {
+      unmatched.push(snippet);
+    }
+  });
+
+  return { matched, unmatched };
+}
+
+function llmResultMatchesCriterionSource(llmResult, sourceText) {
+  const status = llmResult?.status;
+  if (!llmStatusNeedsEvidence(status)) {
+    return { ok: true, matchedEvidence: normalizeEvidenceList(llmResult?.evidence), reason: null };
+  }
+
+  const { matched, unmatched } = splitEvidenceBySourceMatch(sourceText, llmResult?.evidence);
+
+  if (matched.length === 0) {
+    return {
+      ok: false,
+      matchedEvidence: [],
+      reason: "no evidence quotes found in criterion source text"
+    };
+  }
+
+  if (unmatched.length > 0) {
+    return {
+      ok: false,
+      matchedEvidence: matched,
+      reason: "some evidence quotes were outside the criterion source text"
+    };
+  }
+
+  return { ok: true, matchedEvidence: matched, reason: null };
+}
+
+function evaluateCriterion(conversation, criterion, llmResults, supplementalInputs) {
   const enabled = criterion.enabled !== false;
   const tags = normalizeTags(criterion.tags);
   const points = Number(criterion.points) || 0;
@@ -300,34 +443,47 @@ function evaluateCriterion(conversation, criterion, llmResults) {
   }
 
   const mode = criterion.mode || "rule";
-  const text = collectTextBySource(conversation, criterion.source || "user");
+  const text = collectTextBySource(conversation, criterion.source || "user", supplementalInputs);
 
   if (mode === "llm" || mode === "llm_or_rule") {
-    // console.log("Checking ID:", criterion.id);
-    // console.log("LLM Map Keys:", Array.from(llmResults.keys()));
+    let llmDiscardReason = null;
 
     if (llmResults?.has(criterion.id)) {
       const llm = llmResults.get(criterion.id);
+      const sourceCheck = llmResultMatchesCriterionSource(llm, text);
 
-      const status =
-        llm.status === "met"
-          ? "met"
-          : llm.status === "partially_met"
-          ? "partially_met"
-          : "missed"; // not_met -> missed 
+      // Strict guard: ignore LLM "met/partial" if evidence is not from the
+      // criterion's declared source text (e.g., user-only criteria must cite
+      // student utterances, not patient responses).
+      if (!sourceCheck.ok) {
+        llmDiscardReason = sourceCheck.reason || "evidence/source mismatch";
+        debugLog(
+          `Discarding LLM result for ${criterion.id}: ${llmDiscardReason} (source "${
+            criterion.source || "user"
+          }").`
+        );
+      } else {
+        const status =
+          llm.status === "met"
+            ? "met"
+            : llm.status === "partially_met"
+            ? "partially_met"
+            : "missed"; // not_met -> missed 
 
-      return {
-        id: criterion.id,
-        section: criterion.section,
-        label: criterion.label || criterion.id,
-        tags,
-        points,
-        earned_points: Number(llm.earned_points) || 0,
-        status,
-        omit_reason: null,
-        evidence: Array.isArray(llm.evidence) ? llm.evidence : [],
-        rationale: llm.rationale || null
-      };
+        return {
+          id: criterion.id,
+          section: criterion.section,
+          label: criterion.label || criterion.id,
+          tags,
+          points,
+          earned_points: Number(llm.earned_points) || 0,
+          status,
+          omit_reason: null,
+          evidence: sourceCheck.matchedEvidence,
+          rationale: llm.rationale || null
+        };
+      }
+
     }
 
     // missing LLM result -> fallback behavior
@@ -345,7 +501,9 @@ function evaluateCriterion(conversation, criterion, llmResults) {
         status: ruleResult.matched ? "met" : "missed",
         omit_reason: null,
         evidence: ruleResult.evidence,
-        rationale: "Fallback rule used (LLM missing result)."
+        rationale: llmDiscardReason
+          ? `Fallback rule used (${llmDiscardReason}).`
+          : "Fallback rule used (LLM missing result)."
       };
     }
 
@@ -360,7 +518,7 @@ function evaluateCriterion(conversation, criterion, llmResults) {
       status: "missed",
       omit_reason: null,
       evidence: [],
-      rationale: "LLM missing result."
+      rationale: llmDiscardReason || "LLM missing result."
     };
   }
 
@@ -526,15 +684,20 @@ function gradeWithoutRubric({ caseData, gradingData, conversation }) {
   };
 }
 
-async function gradeWithRubric({ caseData, gradingData, conversation }) {
+async function gradeWithRubric({ caseData, gradingData, conversation, supplementalInputs }) {
   const rubric = gradingData.rubric || {};
   const criteria = expandCriteriaWithCommon(rubric);
   const sectionDefs = Array.isArray(rubric.sections) ? rubric.sections : [];
 
-  const llmResults = await evaluateCriteriaWithLlm({ caseData, criteria, conversation });
+  const llmResults = await evaluateCriteriaWithLlm({
+    caseData,
+    criteria,
+    conversation,
+    supplementalInputs
+  });
 
   const criteriaResults = criteria.map((criterion) =>
-    evaluateCriterion(conversation, criterion, llmResults)
+    evaluateCriterion(conversation, criterion, llmResults, supplementalInputs)
   );
 
   const sectionScores = summarizeSections(sectionDefs, criteriaResults);
@@ -599,11 +762,17 @@ async function gradeWithRubric({ caseData, gradingData, conversation }) {
   };
 }
 
-async function gradeConversation({ caseData, gradingData, conversation }) {
+async function gradeConversation({ caseData, gradingData, conversation, supplementalInputs }) {
   const safeConversation = Array.isArray(conversation) ? conversation : [];
+  const safeSupplementalInputs = normalizeSupplementalInputs(supplementalInputs);
 
   if (gradingData?.rubric?.criteria?.length || gradingData?.rubric?.common_criteria?.length) {
-    return gradeWithRubric({ caseData, gradingData, conversation: safeConversation });
+    return gradeWithRubric({
+      caseData,
+      gradingData,
+      conversation: safeConversation,
+      supplementalInputs: safeSupplementalInputs
+    });
   }
 
   return gradeWithoutRubric({ caseData, gradingData, conversation: safeConversation });
