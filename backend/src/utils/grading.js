@@ -358,6 +358,28 @@ function normalizeTags(tags) {
   return tags.map((tag) => normalizeText(tag)).filter(Boolean);
 }
 
+function getPenaltyIfMissed(criterion) {
+  const value = Number(criterion?.penalty_if_missed);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function applyMissedPenalty(result, criterion) {
+  if (!result || result.status === "omitted") return result;
+
+  const penalty = getPenaltyIfMissed(criterion);
+  if (!penalty || result.status !== "missed") return result;
+
+  const earned = Number(result.earned_points) || 0;
+  const nextEarned = roundTo(earned - penalty);
+  const penaltyText = `Penalty applied: -${penalty} point${penalty === 1 ? "" : "s"}.`;
+
+  return {
+    ...result,
+    earned_points: nextEarned,
+    rationale: result.rationale ? `${result.rationale} ${penaltyText}` : penaltyText
+  };
+}
+
 function llmStatusNeedsEvidence(status) {
   return status === "met" || status === "partially_met";
 }
@@ -426,9 +448,10 @@ function evaluateCriterion(conversation, criterion, llmResults, supplementalInpu
   const enabled = criterion.enabled !== false;
   const tags = normalizeTags(criterion.tags);
   const points = Number(criterion.points) || 0;
+  const finalize = (result) => applyMissedPenalty(result, criterion);
 
   if (!enabled) {
-    return {
+    return finalize({
       id: criterion.id,
       section: criterion.section,
       label: criterion.label || criterion.id,
@@ -439,7 +462,7 @@ function evaluateCriterion(conversation, criterion, llmResults, supplementalInpu
       omit_reason: criterion.omit_reason || "Marked not applicable for this case",
       evidence: [],
       rationale: null
-    };
+    });
   }
 
   const mode = criterion.mode || "rule";
@@ -470,7 +493,7 @@ function evaluateCriterion(conversation, criterion, llmResults, supplementalInpu
             ? "partially_met"
             : "missed"; // not_met -> missed 
 
-        return {
+        return finalize({
           id: criterion.id,
           section: criterion.section,
           label: criterion.label || criterion.id,
@@ -481,7 +504,7 @@ function evaluateCriterion(conversation, criterion, llmResults, supplementalInpu
           omit_reason: null,
           evidence: sourceCheck.matchedEvidence,
           rationale: llm.rationale || null
-        };
+        });
       }
 
     }
@@ -491,7 +514,7 @@ function evaluateCriterion(conversation, criterion, llmResults, supplementalInpu
       const fallbackRule = criterion.fallback_rule || criterion.rule || {};
       const ruleResult = evaluateRule(text, fallbackRule);
 
-      return {
+      return finalize({
         id: criterion.id,
         section: criterion.section,
         label: criterion.label || criterion.id,
@@ -504,11 +527,11 @@ function evaluateCriterion(conversation, criterion, llmResults, supplementalInpu
         rationale: llmDiscardReason
           ? `Fallback rule used (${llmDiscardReason}).`
           : "Fallback rule used (LLM missing result)."
-      };
+      });
     }
 
     // mode === "llm" only
-    return {
+    return finalize({
       id: criterion.id,
       section: criterion.section,
       label: criterion.label || criterion.id,
@@ -519,14 +542,14 @@ function evaluateCriterion(conversation, criterion, llmResults, supplementalInpu
       omit_reason: null,
       evidence: [],
       rationale: llmDiscardReason || "LLM missing result."
-    };
+    });
   }
 
   // rule-only path
   const fallbackRule = criterion.fallback_rule || criterion.rule || {};
   const ruleResult = evaluateRule(text, fallbackRule);
 
-  return {
+  return finalize({
     id: criterion.id,
     section: criterion.section,
     label: criterion.label || criterion.id,
@@ -537,7 +560,7 @@ function evaluateCriterion(conversation, criterion, llmResults, supplementalInpu
     omit_reason: null,
     evidence: ruleResult.evidence,
     rationale: null
-  };
+  });
 }
 
 function summarizeSections(sectionDefs, criterionResults) {
@@ -709,7 +732,8 @@ async function gradeWithRubric({ caseData, gradingData, conversation, supplement
   const earnedPoints = criteriaResults.reduce((sum, item) => sum + item.earned_points, 0);
   const omittedPoints = totalPoints - availablePoints;
 
-  const score = availablePoints > 0 ? Math.round((earnedPoints / availablePoints) * 100) : 0;
+  const rawScore = availablePoints > 0 ? Math.round((earnedPoints / availablePoints) * 100) : 0;
+  const score = Math.min(100, Math.max(0, rawScore));
   const passingScore = Number(rubric.passing_score || gradingData?.scoring?.passing_score || 84);
   const passed = score >= passingScore;
 

@@ -31,6 +31,13 @@
         "max_points": 2
       }
     ],
+    "reporter_point_model": {
+      "total_points": 37,
+      "history_points_target": 23,
+      "physical_exam_points_target": 12,
+      "case_presentation_points_target": 2,
+      "implementation_note": "Focused UTI station redistributes portions of broad ROS/virtual-exam expectations into targeted history and focused exam criteria while preserving total reporter points."
+    },
     "common_criteria": [
       "professional_intro_name_title",
       {
@@ -84,22 +91,10 @@
         }
       },
       {
-        "id": "reporter_onset_duration",
-        "section": "reporter",
-        "label": "Assesses symptom onset and duration",
-        "points": 2,
-        "source": "user",
-        "mode": "llm_or_rule",
-        "tags": ["required_history"],
-        "rule": {
-          "any": ["when did", "how long", "onset", "started", "began", "duration"]
-        }
-      },
-      {
         "id": "reporter_oldcarts_bundle",
         "section": "reporter",
         "label": "Elicits OLDCARTS symptom detail bundle",
-        "points": 1,
+        "points": 2.5,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history"],
@@ -144,7 +139,7 @@
         "id": "reporter_frequency_urgency",
         "section": "reporter",
         "label": "Assesses urinary frequency/urgency",
-        "points": 3,
+        "points": 2.5,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history"],
@@ -156,7 +151,7 @@
         "id": "reporter_hematuria",
         "section": "reporter",
         "label": "Assesses blood in urine details",
-        "points": 3,
+        "points": 2.5,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history"],
@@ -168,7 +163,7 @@
         "id": "reporter_fever_chills",
         "section": "reporter",
         "label": "Assesses fever/chills",
-        "points": 3,
+        "points": 2.5,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history", "red_flag", "critical_fail"],
@@ -180,7 +175,7 @@
         "id": "reporter_flank_back_pain",
         "section": "reporter",
         "label": "Assesses flank/back pain",
-        "points": 3,
+        "points": 2.5,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history", "red_flag", "critical_fail"],
@@ -192,7 +187,7 @@
         "id": "reporter_nausea_vomiting",
         "section": "reporter",
         "label": "Assesses nausea/vomiting",
-        "points": 3,
+        "points": 2.5,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history", "red_flag", "critical_fail"],
@@ -216,7 +211,7 @@
         "id": "reporter_pregnancy_status",
         "section": "reporter",
         "label": "Assesses pregnancy status",
-        "points": 4,
+        "points": 3.5,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history", "red_flag", "critical_fail"],
@@ -227,20 +222,25 @@
       {
         "id": "reporter_medication_allergies",
         "section": "reporter",
-        "label": "Assesses medication allergies",
+        "label": "Assesses allergies and current medications",
         "points": 2,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history"],
+        "prompt_hint": "Student asks about medication/food allergies and asks what prescription/OTC/supplement medications the patient is currently using.",
         "rule": {
-          "any": ["allergies", "allergy", "medication allergies", "drug allergies"]
+          "groups": [
+            ["allergies", "allergy", "medication allergies", "drug allergies", "food allergies"],
+            ["medications", "meds", "otc", "supplements", "herbal", "what are you taking"]
+          ],
+          "min_groups_matched": 1
         }
       },
       {
         "id": "reporter_sexual_history",
         "section": "reporter",
         "label": "Assesses sexual history/STI risk",
-        "points": 3,
+        "points": 2.5,
         "source": "user",
         "mode": "llm_or_rule",
         "tags": ["required_history"],
@@ -251,12 +251,107 @@
       {
         "id": "reporter_prior_uti_pmh",
         "section": "reporter",
-        "label": "Assesses prior UTI/PMH context",
+        "label": "Assesses prior UTI and PMH/PSH context",
         "points": 2,
         "source": "user",
         "mode": "llm_or_rule",
+        "tags": ["required_history"],
+        "prompt_hint": "Student asks about prior UTI episodes plus relevant past medical/surgical/hospital history.",
         "rule": {
-          "any": ["previous uti", "prior uti", "had this before", "past medical history", "history of uti"]
+          "any": [
+            "previous uti",
+            "prior uti",
+            "had this before",
+            "past medical history",
+            "medical history",
+            "surgical history",
+            "hospitalization",
+            "history of uti"
+          ]
+        }
+      },
+      {
+        "id": "reporter_family_history_relevance",
+        "section": "reporter",
+        "label": "Assesses relevant family history",
+        "points": 0.5,
+        "source": "user",
+        "mode": "llm_or_rule",
+        "tags": ["required_history"],
+        "rule": {
+          "any": [
+            "family history",
+            "runs in your family",
+            "parents medical history",
+            "siblings medical history",
+            "relatives with"
+          ]
+        }
+      },
+      {
+        "id": "reporter_social_substance_history",
+        "section": "reporter",
+        "label": "Assesses social substance history (alcohol/tobacco/drugs)",
+        "points": 1.5,
+        "source": "user",
+        "mode": "llm_or_rule",
+        "tags": ["required_history"],
+        "prompt_hint": "Student screens at least two of alcohol use, tobacco/nicotine use, and recreational/illicit drug use.",
+        "rule": {
+          "groups": [
+            ["alcohol", "drink", "drinking"],
+            ["tobacco", "smoke", "smoking", "nicotine", "vape", "vaping"],
+            ["drug use", "drugs", "marijuana", "cannabis", "substance use", "illicit"]
+          ],
+          "min_groups_matched": 2
+        }
+      },
+      {
+        "id": "reporter_social_context_general",
+        "section": "reporter",
+        "label": "Assesses broader social context relevant to complaint",
+        "points": 0.5,
+        "source": "user",
+        "mode": "llm_or_rule",
+        "tags": ["required_history"],
+        "prompt_hint": "Student asks at least one broader social-context factor relevant to care planning (for example occupation/student demands, support system, sleep, activity, nutrition, or safety/living context).",
+        "rule": {
+          "any": [
+            "support system",
+            "who do you live with",
+            "living situation",
+            "occupation",
+            "work",
+            "student",
+            "sleep",
+            "physical activity",
+            "exercise",
+            "nutrition",
+            "diet",
+            "safety at home"
+          ]
+        }
+      },
+      {
+        "id": "reporter_preventive_history_if_applicable",
+        "section": "reporter",
+        "label": "Assesses preventive health history when applicable",
+        "points": 0.5,
+        "source": "user",
+        "mode": "llm_or_rule",
+        "tags": ["required_history"],
+        "prompt_hint": "When appropriate, student asks at least one preventive-history item (for example recent preventive exam/screening or immunization context).",
+        "rule": {
+          "any": [
+            "immunization",
+            "vaccines",
+            "last physical",
+            "annual exam",
+            "screening",
+            "well woman",
+            "dental exam",
+            "eye exam"
+          ]
         }
       },
       {
@@ -294,8 +389,49 @@
         "section": "reporter",
         "label": "Meets minimum ROS breadth expectation",
         "points": 1,
-        "enabled": false,
-        "omit_reason": "Temporarily omitted in this CPI1 station because ROS is being captured through focused symptom and red-flag criteria; full ROS-minimum scoring will be added with dedicated rubric calibration examples."
+        "source": "user",
+        "mode": "llm_or_rule",
+        "tags": ["required_history"],
+        "prompt_hint": "Student addresses at least three relevant ROS domains in context of this complaint (for example constitutional, GI, GU, musculoskeletal/flank-back).",
+        "rule": {
+          "groups": [
+            ["fever", "chills", "temperature"],
+            ["nausea", "vomit", "vomiting", "appetite"],
+            [
+              "frequency",
+              "urgency",
+              "blood in urine",
+              "hematuria",
+              "vaginal discharge",
+              "vaginal bleeding",
+              "pregnant",
+              "lmp",
+              "last menstrual period"
+            ],
+            ["flank pain", "back pain", "side pain", "cva tenderness"]
+          ],
+          "min_groups_matched": 3
+        }
+      },
+      {
+        "id": "reporter_ros_pertinent_area_penalty",
+        "section": "reporter",
+        "label": "Penalty: misses pertinent ROS areas for this complaint",
+        "points": 0,
+        "source": "user",
+        "mode": "rule",
+        "tags": ["required_history"],
+        "penalty_if_missed": 1,
+        "prompt_hint": "Apply a -1 penalty when the student fails to assess all pertinent UTI ROS areas.",
+        "rule": {
+          "groups": [
+            ["fever", "chills", "temperature"],
+            ["flank pain", "back pain", "side pain", "cva tenderness"],
+            ["nausea", "vomit", "vomiting", "throw up"],
+            ["vaginal discharge", "vaginal bleeding"],
+            ["pregnant", "pregnancy", "lmp", "last menstrual period"]
+          ]
+        }
       },
       {
         "id": "interpreter_working_diagnosis",
@@ -416,7 +552,13 @@
     "flank pain",
     "nausea or vomiting",
     "pregnancy status",
-    "medication allergies"
+    "medication allergies",
+    "current medications/OTC/supplements",
+    "family history relevance",
+    "social history: alcohol/tobacco/drug use",
+    "broader social context relevant to care (occupation/support/sleep/activity/nutrition/safety)",
+    "preventive health history when applicable",
+    "review of systems breadth in context of complaint"
   ],
 
   "required_actions": [
