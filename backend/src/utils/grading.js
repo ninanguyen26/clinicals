@@ -7,6 +7,7 @@ function envFlagEnabled(value) {
 }
 
 const GRADING_DEBUG = envFlagEnabled(process.env.GRADING_DEBUG);
+const GRADING_LLM_DISABLED = envFlagEnabled(process.env.GRADING_LLM_DISABLED);
 
 function debugLog(...args) {
   if (!GRADING_DEBUG) return;
@@ -712,12 +713,14 @@ async function gradeWithRubric({ caseData, gradingData, conversation, supplement
   const criteria = expandCriteriaWithCommon(rubric);
   const sectionDefs = Array.isArray(rubric.sections) ? rubric.sections : [];
 
-  const llmResults = await evaluateCriteriaWithLlm({
-    caseData,
-    criteria,
-    conversation,
-    supplementalInputs
-  });
+  const llmResults = GRADING_LLM_DISABLED
+    ? new Map()
+    : await evaluateCriteriaWithLlm({
+        caseData,
+        criteria,
+        conversation,
+        supplementalInputs
+      });
 
   const criteriaResults = criteria.map((criterion) =>
     evaluateCriterion(conversation, criterion, llmResults, supplementalInputs)

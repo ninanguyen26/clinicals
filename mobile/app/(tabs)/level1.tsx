@@ -135,6 +135,11 @@ type SubmissionResult = {
   feedback: string;
   section_scores: SectionScore[];
   criteria_results: CriterionResult[];
+  earned_points: number | null;
+  available_points: number | null;
+  missed_required_questions: string[];
+  missed_red_flags: string[];
+  critical_fails_triggered: string[];
 };
 
 function statusColor(status: string) {
@@ -171,12 +176,29 @@ function normalizeSubmissionPayload(payload: any): SubmissionResult {
     : [];
 
   return {
-    score,
-    passing_score: passingScore,
-    passed,
-    feedback: String(payload?.feedback ?? details?.feedback ?? ""),
-    section_scores: sectionScores,
-    criteria_results: criteriaResults,
+  score,
+  passing_score: passingScore,
+  passed,
+  feedback: String(payload?.feedback ?? details?.feedback ?? ""),
+  section_scores: sectionScores,
+  criteria_results: criteriaResults,
+  earned_points: payload?.earned_points ?? details?.earned_points ?? null,
+  available_points: payload?.available_points ?? details?.available_points ?? null,
+  missed_required_questions: Array.isArray(payload?.missed_required_questions)
+    ? payload.missed_required_questions
+    : Array.isArray(details?.missed_required_questions)
+    ? details.missed_required_questions
+    : [],
+  missed_red_flags: Array.isArray(payload?.missed_red_flags)
+    ? payload.missed_red_flags
+    : Array.isArray(details?.missed_red_flags)
+    ? details.missed_red_flags
+    : [],
+  critical_fails_triggered: Array.isArray(payload?.critical_fails_triggered)
+    ? payload.critical_fails_triggered
+    : Array.isArray(details?.critical_fails_triggered)
+    ? details.critical_fails_triggered
+    : [],
   };
 }
 
@@ -204,6 +226,9 @@ export default function Level1Screen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [savedConversationId, setSavedConversationId] = useState<string | null>(null);
 
   const { user } = useUser();
 
@@ -272,6 +297,27 @@ export default function Level1Screen() {
     setSubmissionResult(null);
     setSubmitError(null);
   }, [caseId]);
+
+  // for resume chat button
+  useEffect(() => {
+    if (!conversationId) return;
+    SecureStore.setItemAsync(`conv_${caseId}`, conversationId).catch(() => {});
+  }, [conversationId, caseId]);
+
+  // on mount, check if a previous conversation exists for this case
+  useEffect(() => {
+    (async () => {
+      const saved = await SecureStore.getItemAsync(`conv_${caseId}`);
+      if (saved) {
+        setSavedConversationId(saved);
+        setShowResumePrompt(true);
+      }
+    })();
+  }, [caseId]);
+
+  useEffect(() => {
+    console.log("userHeaders:", userHeaders);
+  }, [userHeaders]);
 
   useEffect(() => {
     ensureConversation();
@@ -414,6 +460,7 @@ export default function Level1Screen() {
       });
 
       setSubmissionResult(normalizeSubmissionPayload(data));
+      await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
       setStage("results");
     } catch (e: any) {
       const message = String(e?.message || "Failed to submit case.");
@@ -450,6 +497,35 @@ export default function Level1Screen() {
     }
   }, [conversationId, ensureConversation, hpiText, submitting, userHeaders]);
 
+  const resumeConversation = useCallback(async () => {
+    if (!savedConversationId) return;
+    setResumeLoading(true);
+    try {
+      const data = await request(`/conversations/${savedConversationId}`, {
+        headers: userHeaders,
+      });
+      const msgs: Msg[] = (data?.messages ?? []).map((m: any) => ({
+        id: m.id ?? `${m.role}-${Date.now()}-${Math.random()}`,
+        role: m.role,
+        content: m.content,
+      }));
+      setMessages(msgs);
+      setConversationId(savedConversationId);
+      setShowResumePrompt(false);
+    } catch (e: any) {
+      console.warn("Failed to resume conversation:", e.message);
+      setShowResumePrompt(false);
+    } finally {
+      setResumeLoading(false);
+    }
+  }, [savedConversationId, userHeaders]);
+
+  const startFresh = useCallback(async () => {
+    await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
+    setSavedConversationId(null);
+    setShowResumePrompt(false);
+  }, [caseId]);
+
   if (loadingCase) {
     return (
       <SafeAreaView style={caseStyles.container}>
@@ -469,6 +545,31 @@ export default function Level1Screen() {
 
   return (
     <SafeAreaView style={caseStyles.container}>
+      {showResumePrompt && (
+        <View style={caseStyles.resumeOverlay}>
+          <View style={caseStyles.resumeCard}>
+            <Text style={caseStyles.resumeTitle}>Resume previous session?</Text>
+            <Text style={caseStyles.resumeSubText}>
+              You have an unfinished interview for this case. Resume to where you left off or start over.
+            </Text>
+            <Pressable
+              onPress={resumeConversation}
+              disabled={resumeLoading}
+              style={caseStyles.resumePrimaryButton}
+            >
+              <Text style={caseStyles.resumePrimaryButtonText}>
+                {resumeLoading ? "Loading..." : "Resume"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={startFresh}
+              style={caseStyles.resumeSecondaryButton}
+            >
+              <Text style={caseStyles.resumeSecondaryButtonText}>Start Fresh</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -508,65 +609,92 @@ export default function Level1Screen() {
             contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
             ListHeaderComponent={
               <View style={{ gap: 10, marginBottom: 12 }}>
-                <View style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}>
-                  <Text style={{ fontSize: 20, fontWeight: "800", marginBottom: 4 }}>
-                    Final Score: {submissionResult.score}%
-                  </Text>
-                  <Text style={{ fontWeight: "700", color: submissionResult.passed ? "#166534" : "#b91c1c" }}>
-                    {submissionResult.passed ? "Passed" : "Not passed"} (threshold {submissionResult.passing_score}%)
-                  </Text>
-                  {!!submissionResult.feedback && (
-                    <Text style={{ marginTop: 8, color: "#374151" }}>{submissionResult.feedback}</Text>
+                <View style={caseStyles.resultsCard}>
+
+                  {/* Score */}
+                  <View style={caseStyles.resultsScoreRow}>
+                    <Text style={caseStyles.resultsScoreText}>
+                      {submissionResult.score}%
+                    </Text>
+                    <Text style={[caseStyles.resultsPassText, { color: submissionResult.passed ? "#166534" : "#b91c1c" }]}>
+                      {submissionResult.passed ? "Passed ✓" : "Not passed"} · threshold {submissionResult.passing_score}%
+                    </Text>
+                  </View>
+
+                  {/* Points */}
+                  {submissionResult.earned_points != null && (
+                    <Text style={caseStyles.resultsPointsText}>
+                      {submissionResult.earned_points} / {submissionResult.available_points} available points
+                    </Text>
+                  )}
+
+                  {/* Critical fails */}
+                  {submissionResult.critical_fails_triggered.length > 0 && (
+                    <View style={caseStyles.resultsCriticalBox}>
+                      <Text style={caseStyles.resultsCriticalTitle}>Critical Fails</Text>
+                      {submissionResult.critical_fails_triggered.map((item) => (
+                        <Text key={item} style={caseStyles.resultsCriticalItem}>· {item}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Missed red flags */}
+                  {submissionResult.missed_red_flags.length > 0 && (
+                    <View style={caseStyles.resultsRedFlagBox}>
+                      <Text style={caseStyles.resultsRedFlagTitle}>Missed Red Flags</Text>
+                      {submissionResult.missed_red_flags.map((item) => (
+                        <Text key={item} style={caseStyles.resultsRedFlagItem}>· {item}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Missed history */}
+                  {submissionResult.missed_required_questions.length > 0 && (
+                    <View style={caseStyles.resultsMissedBox}>
+                      <Text style={caseStyles.resultsMissedTitle}>Missed History Items</Text>
+                      {submissionResult.missed_required_questions.map((item) => (
+                        <Text key={item} style={caseStyles.resultsMissedItem}>· {item}</Text>
+                      ))}
+                    </View>
                   )}
                 </View>
 
-                <View style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}>
-                  <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 8 }}>
-                    Section Scores
-                  </Text>
+                <View style={caseStyles.resultsCard}>
+                  <Text style={caseStyles.resultsSectionTitle}>Section Scores</Text>
                   {submissionResult.section_scores.map((section) => (
-                    <View
-                      key={section.section}
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        borderBottomWidth: 1,
-                        borderColor: "#e5e7eb",
-                        paddingVertical: 6,
-                      }}
-                    >
-                      <Text style={{ fontWeight: "600" }}>{section.label || section.section}</Text>
-                      <Text>
+                    <View key={section.section} style={caseStyles.resultsSectionRow}>
+                      <Text style={caseStyles.resultsSectionLabel}>{section.label || section.section}</Text>
+                      <Text style={caseStyles.resultsSectionPoints}>
                         {section.earned_points}/{section.available_points}
                       </Text>
                     </View>
                   ))}
                 </View>
 
-                <Text style={{ fontSize: 16, fontWeight: "700" }}>Criterion Breakdown</Text>
+                <Text style={caseStyles.resultsSectionTitle}>Criterion Breakdown</Text>
               </View>
             }
             renderItem={({ item }) => (
-              <View style={{ borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 10 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-                  <Text style={{ flex: 1, fontWeight: "700" }}>{item.label || item.id}</Text>
+              <View style={caseStyles.criterionCard}>
+                <View style={caseStyles.criterionRow}>
+                  <Text style={caseStyles.criterionLabel}>{item.label || item.id}</Text>
                   <Text style={{ color: statusColor(item.status), fontWeight: "700" }}>
                     {statusLabel(item.status)}
                   </Text>
                 </View>
-                <Text style={{ color: "#6b7280", marginTop: 2 }}>
+                <Text style={caseStyles.criterionMeta}>
                   {item.section} • {item.earned_points}/{item.points}
                 </Text>
                 {!!item.rationale && (
-                  <Text style={{ marginTop: 6, color: "#374151" }}>{item.rationale}</Text>
+                  <Text style={caseStyles.criterionRationale}>{item.rationale}</Text>
                 )}
                 {Array.isArray(item.evidence) && item.evidence.length > 0 && (
-                  <Text style={{ marginTop: 6, color: "#374151" }}>
+                  <Text style={caseStyles.criterionEvidence}>
                     Evidence: {item.evidence.slice(0, 2).join(" | ")}
                   </Text>
                 )}
                 {!!item.omit_reason && (
-                  <Text style={{ marginTop: 6, color: "#6b7280" }}>Reason: {item.omit_reason}</Text>
+                  <Text style={caseStyles.criterionOmitReason}>Reason: {item.omit_reason}</Text>
                 )}
               </View>
             )}
@@ -637,19 +765,12 @@ export default function Level1Screen() {
                     onPress={beginHpiStep}
                     disabled={sending || creatingConversation || messages.length === 0}
                     style={({ pressed }) => ({
-                      borderWidth: 1,
-                      borderRadius: 10,
-                      paddingVertical: 12,
-                      alignItems: "center",
-                      opacity:
-                        sending || creatingConversation || messages.length === 0
-                          ? 0.5
-                          : pressed
-                          ? 0.7
-                          : 1,
+                      ...caseStyles.outlineButton,
+                      flex: undefined,
+                      opacity: sending || creatingConversation || messages.length === 0 ? 0.5 : pressed ? 0.7 : 1,
                     })}
                   >
-                    <Text style={{ fontWeight: "700" }}>
+                    <Text style={caseStyles.outlineButtonText}>
                       {creatingConversation ? "Preparing..." : "Done Interview"}
                     </Text>
                   </Pressable>
@@ -657,11 +778,9 @@ export default function Level1Screen() {
               </>
             ) : (
               <View style={{ paddingHorizontal: 12, paddingBottom: 12, gap: 10 }}>
-                <View style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}>
-                  <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 6 }}>
-                    Final HPI (4-5 sentences)
-                  </Text>
-                  <Text style={{ color: "#4b5563", marginBottom: 8 }}>
+                <View style={caseStyles.hpiCard}>
+                  <Text style={caseStyles.hpiTitle}>Final HPI (4-5 sentences)</Text>
+                  <Text style={caseStyles.hpiSubText}>
                     Summarize presenting illness with OLDCARTS elements. This is graded.
                   </Text>
                   <TextInput
@@ -671,48 +790,34 @@ export default function Level1Screen() {
                     textAlignVertical="top"
                     editable={!submitting}
                     placeholder="Write your HPI summary here..."
-                    style={{
-                      borderWidth: 1,
-                      borderRadius: 10,
-                      paddingHorizontal: 12,
-                      paddingVertical: 10,
-                      minHeight: 120,
-                    }}
+                    style={caseStyles.hpiInput}
                   />
                 </View>
 
                 {submitError ? (
-                  <Text style={{ color: "#b91c1c", fontWeight: "600" }}>{submitError}</Text>
+                  <Text style={caseStyles.errorText}>{submitError}</Text>
                 ) : null}
 
-                <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={caseStyles.hpiButtonRow}>
                   <Pressable
                     onPress={() => setStage("chat")}
                     disabled={submitting}
                     style={({ pressed }) => ({
-                      flex: 1,
-                      borderWidth: 1,
-                      borderRadius: 10,
-                      paddingVertical: 12,
-                      alignItems: "center",
+                      ...caseStyles.outlineButton,
                       opacity: submitting ? 0.5 : pressed ? 0.7 : 1,
                     })}
                   >
-                    <Text style={{ fontWeight: "700" }}>Back to Chat</Text>
+                    <Text style={caseStyles.outlineButtonText}>Back to Chat</Text>
                   </Pressable>
                   <Pressable
                     onPress={submitForFinalGrade}
                     disabled={submitting || !hpiText.trim()}
                     style={({ pressed }) => ({
-                      flex: 1,
-                      borderWidth: 1,
-                      borderRadius: 10,
-                      paddingVertical: 12,
-                      alignItems: "center",
+                      ...caseStyles.outlineButton,
                       opacity: submitting || !hpiText.trim() ? 0.5 : pressed ? 0.7 : 1,
                     })}
                   >
-                    <Text style={{ fontWeight: "700" }}>
+                    <Text style={caseStyles.outlineButtonText}>
                       {submitting ? "Submitting..." : "Submit Case"}
                     </Text>
                   </Pressable>
