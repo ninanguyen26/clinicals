@@ -1,6 +1,7 @@
 const DEFAULT_BASE_URL = "https://api.ai.it.ufl.edu";
 const DEFAULT_CHAT_TIMEOUT_MS = 30000;
 const DEFAULT_GRADING_TIMEOUT_MS = 180000;
+const DEFAULT_TTS_TIMEOUT_MS = 60000;
 
 function readTimeoutMs(raw, fallback) {
   if (Number.isFinite(raw) && raw > 0) {
@@ -17,6 +18,11 @@ function getChatTimeoutMs() {
 function getGradingTimeoutMs() {
   const raw = Number(process.env.NAVIGATOR_GRADING_TIMEOUT_MS || process.env.NAVIGATOR_TIMEOUT_MS);
   return readTimeoutMs(raw, DEFAULT_GRADING_TIMEOUT_MS);
+}
+
+function getTtsTimeoutMs() {
+  const raw = Number(process.env.NAVIGATOR_TTS_TIMEOUT_MS || process.env.NAVIGATOR_TIMEOUT_MS);
+  return readTimeoutMs(raw, DEFAULT_TTS_TIMEOUT_MS);
 }
 
 function getNavigatorConfig() {
@@ -123,4 +129,78 @@ async function createRubricEval({ systemPrompt, userPrompt }) {
   });
 }
 
-module.exports = { createPatientReply, createRubricEval };
+function getTtsConfig(overrides = {}) {
+  const model = String(
+    overrides.model ||
+      process.env.NAVIGATOR_TTS_MODEL ||
+      "kokoro"
+  )
+    .trim()
+    .toLowerCase();
+  const voice = String(overrides.voice || process.env.NAVIGATOR_TTS_VOICE || "").trim();
+
+  if (!voice) {
+    throw new Error("NAVIGATOR_TTS_VOICE is not set");
+  }
+
+  const speedRaw = Number(
+    overrides.speed == null ? process.env.NAVIGATOR_TTS_SPEED : overrides.speed
+  );
+  const speed = Number.isFinite(speedRaw) && speedRaw > 0 ? speedRaw : 1;
+
+  return { model, voice, speed };
+}
+
+async function createSpeechAudio({ text, voice, speed, model }) {
+  const input = String(text || "").trim();
+  if (!input) {
+    throw new Error("text is required for speech synthesis");
+  }
+
+  const { apiKey, baseUrl } = getNavigatorConfig();
+  const ttsConfig = getTtsConfig({ voice, speed, model });
+
+  const payload = {
+    model: ttsConfig.model,
+    input,
+    voice: ttsConfig.voice,
+    response_format: "mp3",
+    speed: ttsConfig.speed
+  };
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), getTtsTimeoutMs());
+  let response;
+
+  try {
+    response = await fetch(`${baseUrl}/v1/audio/speech`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error(`NaviGator TTS timed out after ${getTtsTimeoutMs()}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+
+  if (!response.ok) {
+    const textResponse = await response.text();
+    throw new Error(`NaviGator TTS error ${response.status}: ${textResponse}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return {
+    audioBase64: buffer.toString("base64"),
+    mimeType: response.headers.get("content-type") || "audio/mpeg"
+  };
+}
+
+module.exports = { createPatientReply, createRubricEval, createSpeechAudio };
