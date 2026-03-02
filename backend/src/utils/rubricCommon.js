@@ -3,32 +3,50 @@ function deepClone(value) {
 }
 
 const COMMON_CRITERIA = {
-  professional_intro_name_title: {
-    id: "professional_intro_name_title",
+  professional_intro_name: {
+    id: "professional_intro_name",
     section: "professional",
-    label: "Introduces self with name and title",
+    label: "Introduces self by name",
     prompt_hint:
-      "Student introduces self and clearly states a professional clinical role/title.",
-    points: 1,
+      "Award only if the student explicitly introduces themselves by name (for example: 'My name is ...').",
+    points: 0.5,
     source: "user",
     tags: ["professional"],
-    mode: "llm",
+    mode: "llm_or_rule",
     fallback_rule: {
-      groups: [
-        ["my name is", "my name", "i am", "i'm", "im", "this is"],
-        [
-          "dnp student",
-          "np student",
-          "nurse practitioner student",
-          "nurse practitioner",
-          "family nurse practitioner",
-          "fnp",
-          "aprn",
-          "provider",
-          "md",
-          "doctor",
-          "physician"
-        ]
+      any: ["my name is", "my name", "i am", "i'm", "im", "this is"]
+    }
+  },
+  professional_intro_role_title: {
+    id: "professional_intro_role_title",
+    section: "professional",
+    label: "States professional role/title",
+    prompt_hint:
+      "Award only if the student explicitly states their clinical/professional role or title (for example: medical student, doctor, NP student, APRN, physician assistant).",
+    points: 0.5,
+    source: "user",
+    tags: ["professional"],
+    mode: "llm_or_rule",
+    fallback_rule: {
+      any: [
+        "dnp student",
+        "np student",
+        "medical student",
+        "uf medical student",
+        "student doctor",
+        "student physician",
+        "pa student",
+        "physician assistant student",
+        "nursing student",
+        "nurse practitioner student",
+        "nurse practitioner",
+        "family nurse practitioner",
+        "fnp",
+        "aprn",
+        "provider",
+        "md",
+        "doctor",
+        "physician"
       ]
     }
   },

@@ -39,7 +39,8 @@
       "implementation_note": "Focused UTI station redistributes portions of broad ROS/virtual-exam expectations into targeted history and focused exam criteria while preserving total reporter points."
     },
     "common_criteria": [
-      "professional_intro_name_title",
+      "professional_intro_name",
+      "professional_intro_role_title",
       {
         "id": "professional_preferred_name",
         "points": 0.5
