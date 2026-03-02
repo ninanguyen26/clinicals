@@ -14,12 +14,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useUser } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system/legacy";
 import { caseStyles } from "../../assets/styles/case.styles";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
 const DEFAULT_REQUEST_TIMEOUT_MS = 45000;
 const SUBMIT_REQUEST_TIMEOUT_MS = 240000;
+const TTS_REQUEST_TIMEOUT_MS = 90000;
+const VOICE_PREF_KEY = "voice_output_enabled";
 
 const PATIENT_IMAGES: Record<string, any> = {
   uti_level1: require("../../assets/patients/uti_level1.png"),
@@ -28,6 +32,9 @@ const PATIENT_IMAGES: Record<string, any> = {
 function getRequestTimeoutMs(path: string, method: string) {
   if (method === "POST" && /^\/conversations\/[^/]+\/submit$/.test(path)) {
     return SUBMIT_REQUEST_TIMEOUT_MS;
+  }
+  if (method === "POST" && path === "/voice/speak") {
+    return TTS_REQUEST_TIMEOUT_MS;
   }
   return DEFAULT_REQUEST_TIMEOUT_MS;
 }
@@ -229,6 +236,11 @@ export default function Level1Screen() {
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [savedConversationId, setSavedConversationId] = useState<string | null>(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundFilePathRef = useRef<string | null>(null);
+  const voiceEnabledRef = useRef(true);
 
   const { user } = useUser();
 
@@ -241,6 +253,95 @@ export default function Level1Screen() {
     if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
     return headers;
   }, [user]);
+
+  const stopSpeechPlayback = useCallback(async () => {
+    const currentSound = soundRef.current;
+    soundRef.current = null;
+
+    if (currentSound) {
+      try {
+        await currentSound.stopAsync();
+      } catch {
+        // noop
+      }
+      try {
+        await currentSound.unloadAsync();
+      } catch {
+        // noop
+      }
+    }
+
+    const soundFilePath = soundFilePathRef.current;
+    soundFilePathRef.current = null;
+    if (soundFilePath) {
+      try {
+        await FileSystem.deleteAsync(soundFilePath, { idempotent: true });
+      } catch {
+        // noop
+      }
+    }
+
+    setIsSpeaking(false);
+  }, []);
+
+  const speakAssistantReply = useCallback(
+    async (text: string) => {
+      if (!voiceEnabledRef.current) return;
+
+      const inputText = String(text || "").trim();
+      if (!inputText) return;
+
+      try {
+        await stopSpeechPlayback();
+
+        const payload = await request("/voice/speak", {
+          method: "POST",
+          body: { text: inputText },
+        });
+
+        const audioBase64 = String(payload?.audio_base64 || "").trim();
+        if (!audioBase64) return;
+
+        const mimeType = String(payload?.mime_type || "").toLowerCase();
+        const extension = mimeType.includes("wav") ? "wav" : "mp3";
+        const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+        if (!baseDir) {
+          throw new Error("No writable filesystem directory for audio playback.");
+        }
+
+        const filePath = `${baseDir}tts-${Date.now()}.${extension}`;
+        await FileSystem.writeAsStringAsync(filePath, audioBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        soundFilePathRef.current = filePath;
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: filePath },
+          { shouldPlay: true }
+        );
+
+        soundRef.current = sound;
+        setIsSpeaking(true);
+
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded) {
+            if (status.error) {
+              setIsSpeaking(false);
+            }
+            return;
+          }
+
+          if (status.didJustFinish) {
+            void stopSpeechPlayback();
+          }
+        });
+      } catch (err) {
+        console.warn("Failed to play patient voice:", err);
+        await stopSpeechPlayback();
+      }
+    },
+    [stopSpeechPlayback]
+  );
 
   const queueMessage = useCallback((msg: Msg) => {
     setPendingMessages((prev) => [...prev, msg]);
@@ -316,8 +417,38 @@ export default function Level1Screen() {
   }, [caseId]);
 
   useEffect(() => {
-    console.log("userHeaders:", userHeaders);
-  }, [userHeaders]);
+    let cancelled = false;
+
+    (async () => {
+      const savedPref = await SecureStore.getItemAsync(VOICE_PREF_KEY);
+      if (cancelled || savedPref == null) return;
+      setVoiceEnabled(savedPref !== "0");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    SecureStore.setItemAsync(VOICE_PREF_KEY, voiceEnabled ? "1" : "0").catch(() => {});
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    voiceEnabledRef.current = voiceEnabled;
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    if (stage !== "chat") {
+      void stopSpeechPlayback();
+    }
+  }, [stage, stopSpeechPlayback]);
+
+  useEffect(() => {
+    return () => {
+      void stopSpeechPlayback();
+    };
+  }, [stopSpeechPlayback]);
 
   useEffect(() => {
     ensureConversation();
@@ -415,6 +546,7 @@ export default function Level1Screen() {
       } else {
         queueMessage(assistantMsg);
       }
+      void speakAssistantReply(assistantMsg.content);
     } catch (e: any) {
       const assistantMsg: Msg = {
         id: `a-err-${Date.now()}`,
@@ -495,7 +627,7 @@ export default function Level1Screen() {
     } finally {
       setSubmitting(false);
     }
-  }, [conversationId, ensureConversation, hpiText, submitting, userHeaders]);
+  }, [caseId, conversationId, ensureConversation, hpiText, submitting, userHeaders]);
 
   const resumeConversation = useCallback(async () => {
     if (!savedConversationId) return;
@@ -599,6 +731,35 @@ export default function Level1Screen() {
             <Text style={caseStyles.subText}>
               Chief complaint: {caseData.presenting_info.chief_complaint}
             </Text>
+          )}
+
+          {stage === "chat" && (
+            <View style={caseStyles.voiceControlsRow}>
+              <Pressable
+                onPress={async () => {
+                  if (voiceEnabled) {
+                    await stopSpeechPlayback();
+                  }
+                  setVoiceEnabled((prev) => !prev);
+                }}
+                style={({ pressed }) => ({
+                  ...caseStyles.voiceToggleButton,
+                  opacity: pressed ? 0.75 : 1,
+                })}
+              >
+                <Text style={caseStyles.voiceToggleText}>
+                  {voiceEnabled ? "Voice: On" : "Voice: Off"}
+                </Text>
+              </Pressable>
+
+              {voiceEnabled ? (
+                <Text style={caseStyles.voiceStateText}>
+                  {isSpeaking ? "Patient speaking..." : "Patient voice ready"}
+                </Text>
+              ) : (
+                <Text style={caseStyles.voiceStateText}>Text only mode</Text>
+              )}
+            </View>
           )}
         </View>
 

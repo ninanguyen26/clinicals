@@ -43,6 +43,31 @@ export const caseStyles = StyleSheet.create({
     textAlign: "center",
   },
 
+  voiceControlsRow: {
+    width: "100%",
+    marginTop: 8,
+    alignItems: "center",
+    gap: 6,
+  },
+
+  voiceToggleButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "#f8fafc",
+  },
+
+  voiceToggleText: {
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+
+  voiceStateText: {
+    color: "#6b7280",
+    fontSize: 12,
+  },
+
   chatContainer: {
     paddingHorizontal: 16,
     paddingBottom: 12,
