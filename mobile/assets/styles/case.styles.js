@@ -13,6 +13,7 @@ export const caseStyles = StyleSheet.create({
   },
 
   avatarWrapper: {
+    position: "relative",
     borderRadius: 60,
     backgroundColor: "#fff",
 

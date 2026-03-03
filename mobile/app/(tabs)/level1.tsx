@@ -28,6 +28,9 @@ const VOICE_PREF_KEY = "voice_output_enabled";
 const PATIENT_IMAGES: Record<string, any> = {
   uti_level1: require("../../assets/patients/uti_level1.png"),
 };
+const PATIENT_TALKING_IMAGES: Record<string, any> = {
+  uti_level1: require("../../assets/patients/uti_level1_talk.png"),
+};
 
 function getRequestTimeoutMs(path: string, method: string) {
   if (method === "POST" && /^\/conversations\/[^/]+\/submit$/.test(path)) {
@@ -216,6 +219,7 @@ export default function Level1Screen() {
     return Array.isArray(raw) ? raw[0] : raw || "uti_level1";
   }, [params.caseId]);
   const patientImage = PATIENT_IMAGES[caseId] || PATIENT_IMAGES.uti_level1;
+  const patientTalkingImage = PATIENT_TALKING_IMAGES[caseId] || patientImage;
 
   const [loadingCase, setLoadingCase] = useState(true);
   const [sending, setSending] = useState(false);
@@ -238,9 +242,11 @@ export default function Level1Screen() {
   const [savedConversationId, setSavedConversationId] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [talkFrameOpen, setTalkFrameOpen] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
   const soundFilePathRef = useRef<string | null>(null);
   const voiceEnabledRef = useRef(true);
+  const talkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { user } = useUser();
 
@@ -439,13 +445,50 @@ export default function Level1Screen() {
   }, [voiceEnabled]);
 
   useEffect(() => {
+    const shouldAnimateTalkingImage = isSpeaking && stage === "chat" && voiceEnabled;
+
+    if (!shouldAnimateTalkingImage) {
+      if (talkTimerRef.current) {
+        clearInterval(talkTimerRef.current);
+        talkTimerRef.current = null;
+      }
+      setTalkFrameOpen(false);
+      return;
+    }
+
+    setTalkFrameOpen(true);
+    const intervalId = setInterval(() => {
+      setTalkFrameOpen((prev) => !prev);
+    }, 120);
+    talkTimerRef.current = intervalId;
+
+    return () => {
+      clearInterval(intervalId);
+      if (talkTimerRef.current === intervalId) {
+        talkTimerRef.current = null;
+      }
+      setTalkFrameOpen(false);
+    };
+  }, [isSpeaking, stage, voiceEnabled]);
+
+  useEffect(() => {
     if (stage !== "chat") {
       void stopSpeechPlayback();
     }
   }, [stage, stopSpeechPlayback]);
 
   useEffect(() => {
+    if (!voiceEnabled) {
+      void stopSpeechPlayback();
+    }
+  }, [stopSpeechPlayback, voiceEnabled]);
+
+  useEffect(() => {
     return () => {
+      if (talkTimerRef.current) {
+        clearInterval(talkTimerRef.current);
+        talkTimerRef.current = null;
+      }
       void stopSpeechPlayback();
     };
   }, [stopSpeechPlayback]);
@@ -546,7 +589,9 @@ export default function Level1Screen() {
       } else {
         queueMessage(assistantMsg);
       }
-      void speakAssistantReply(assistantMsg.content);
+      if (voiceEnabledRef.current) {
+        void speakAssistantReply(assistantMsg.content);
+      }
     } catch (e: any) {
       const assistantMsg: Msg = {
         id: `a-err-${Date.now()}`,
@@ -675,6 +720,8 @@ export default function Level1Screen() {
     );
   }
 
+  const displayedPatientImage = talkFrameOpen ? patientTalkingImage : patientImage;
+
   return (
     <SafeAreaView style={caseStyles.container}>
       {showResumePrompt && (
@@ -711,7 +758,7 @@ export default function Level1Screen() {
         <View style={caseStyles.header}>
           <View style={caseStyles.avatarWrapper}>
             <Image
-              source={patientImage}
+              source={displayedPatientImage}
               style={caseStyles.avatar}
               resizeMode="cover"
             />
