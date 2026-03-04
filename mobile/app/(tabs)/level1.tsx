@@ -549,16 +549,26 @@ export default function Level1Screen() {
   }, [voiceEnabled]);
 
   const shouldPlayTalkingVideo = isSpeaking && stage === "chat" && voiceEnabled;
+  const safelySetTalkingVideoState = useCallback(
+    (shouldPlay: boolean) => {
+      try {
+        if (shouldPlay) {
+          avatarVideoPlayer.play();
+          return;
+        }
+
+        avatarVideoPlayer.pause();
+        avatarVideoPlayer.currentTime = 0;
+      } catch {
+        // Can happen during unmount/fast-refresh when native player is already disposed.
+      }
+    },
+    [avatarVideoPlayer]
+  );
 
   useEffect(() => {
-    if (shouldPlayTalkingVideo) {
-      avatarVideoPlayer.play();
-      return;
-    }
-
-    avatarVideoPlayer.pause();
-    avatarVideoPlayer.currentTime = 0;
-  }, [avatarVideoPlayer, shouldPlayTalkingVideo]);
+    safelySetTalkingVideoState(shouldPlayTalkingVideo);
+  }, [safelySetTalkingVideoState, shouldPlayTalkingVideo]);
 
   useEffect(() => {
     if (stage !== "chat") {
@@ -579,10 +589,10 @@ export default function Level1Screen() {
       if (recording) {
         recording.stopAndUnloadAsync().catch(() => {});
       }
-      avatarVideoPlayer.pause();
+      safelySetTalkingVideoState(false);
       void stopSpeechPlayback();
     };
-  }, [avatarVideoPlayer, stopSpeechPlayback]);
+  }, [safelySetTalkingVideoState, stopSpeechPlayback]);
 
   useEffect(() => {
     ensureConversation();
