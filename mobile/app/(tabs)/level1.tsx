@@ -248,6 +248,50 @@ export default function Level1Screen() {
   const voiceEnabledRef = useRef(true);
   const talkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+
+  const startRecording = async () => {
+    await Audio.requestPermissionsAsync();
+    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+    const { recording } = await Audio.Recording.createAsync(
+      Audio.RecordingOptionsPresets.HIGH_QUALITY
+    );
+    recordingRef.current = recording;
+    setIsRecording(true);
+  };
+
+  const stopRecordingAndTranscribe = async () => {
+    const recording = recordingRef.current;
+    if (!recording) return;
+
+    await recording.stopAndUnloadAsync();
+    setIsRecording(false);
+    setTranscribing(true);
+    const uri = recording.getURI();
+    recordingRef.current = null;
+    if (!uri) return;
+
+    try {
+      const audioBase64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+
+      const data = await request("/voice/transcribe", {
+        method: "POST",
+        body: { audio_base64: audioBase64, mime_type: "audio/m4a" },
+      });
+
+      if (data?.text) setInput(data.text);
+    } catch (err) {
+      console.warn("Transcription failed:", err);
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
   const { user } = useUser();
 
   const userHeaders = useMemo(() => {
@@ -714,7 +758,7 @@ export default function Level1Screen() {
   if (error) {
     return (
       <SafeAreaView style={caseStyles.container}>
-        <Text style={{ fontWeight: "700", marginBottom: 8 }}>Failed</Text>
+        <Text style={caseStyles.loadErrorTitle}>Failed</Text>
         <Text>{error}</Text>
       </SafeAreaView>
     );
@@ -750,7 +794,7 @@ export default function Level1Screen() {
         </View>
       )}
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={caseStyles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={8}
       >
@@ -814,9 +858,9 @@ export default function Level1Screen() {
           <FlatList
             data={submissionResult.criteria_results}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
+            contentContainerStyle={caseStyles.resultsFlatListContent}
             ListHeaderComponent={
-              <View style={{ gap: 10, marginBottom: 12 }}>
+              <View style={caseStyles.resultsHeaderContainer}>
                 <View style={caseStyles.resultsCard}>
 
                   {/* Score */}
@@ -886,7 +930,7 @@ export default function Level1Screen() {
               <View style={caseStyles.criterionCard}>
                 <View style={caseStyles.criterionRow}>
                   <Text style={caseStyles.criterionLabel}>{item.label || item.id}</Text>
-                  <Text style={{ color: statusColor(item.status), fontWeight: "700" }}>
+                  <Text style={[caseStyles.criterionStatusText, { color: statusColor(item.status) }]}>
                     {statusLabel(item.status)}
                   </Text>
                 </View>
@@ -924,7 +968,7 @@ export default function Level1Screen() {
                       { alignSelf: isUser ? "flex-end" : "flex-start" },
                     ]}
                   >
-                    <Text style={{ fontWeight: "700", marginBottom: 4 }}>
+                    <Text style={caseStyles.messageSenderLabel}>
                       {isUser ? "You" : "Patient"}
                     </Text>
                     <Text>{item.content}</Text>
@@ -936,8 +980,8 @@ export default function Level1Screen() {
               }
             />
             {messages.length === 0 && (
-              <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
-                <Text style={{ color: "#555" }}>
+              <View style={caseStyles.chatHintContainer}>
+                <Text style={caseStyles.chatHintText}>
                   Start with your OSCE introduction (name + title), then ask what brings the patient in.
                 </Text>
               </View>
@@ -957,6 +1001,19 @@ export default function Level1Screen() {
                     onSubmitEditing={send}
                   />
                   <Pressable
+                    onPress={isRecording ? stopRecordingAndTranscribe : startRecording}
+                    disabled={sending || transcribing}
+                    style={({ pressed }) => ({
+                      ...caseStyles.sendButton,
+                      opacity: sending || transcribing ? 0.4 : pressed ? 0.6 : 1,
+                      marginRight: 4,
+                    })}
+                  >
+                    <Text style={caseStyles.buttonText}>
+                      {transcribing ? "..." : isRecording ? "⏹️" : "🎤"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
                     onPress={send}
                     disabled={sending || !input.trim()}
                     style={({ pressed }) => ({
@@ -964,11 +1021,11 @@ export default function Level1Screen() {
                       opacity: sending || !input.trim() ? 0.4 : pressed ? 0.6 : 1,
                     })}
                   >
-                    <Text style={{ fontWeight: "700" }}>{sending ? "..." : "Send"}</Text>
+                    <Text style={caseStyles.buttonText}>{sending ? "..." : "Send"}</Text>
                   </Pressable>
                 </View>
 
-                <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+                <View style={caseStyles.doneButtonContainer}>
                   <Pressable
                     onPress={beginHpiStep}
                     disabled={sending || creatingConversation || messages.length === 0}
@@ -985,7 +1042,7 @@ export default function Level1Screen() {
                 </View>
               </>
             ) : (
-              <View style={{ paddingHorizontal: 12, paddingBottom: 12, gap: 10 }}>
+              <View style={caseStyles.hpiStageContainer}>
                 <View style={caseStyles.hpiCard}>
                   <Text style={caseStyles.hpiTitle}>Final HPI (4-5 sentences)</Text>
                   <Text style={caseStyles.hpiSubText}>

@@ -203,4 +203,45 @@ async function createSpeechAudio({ text, voice, speed, model }) {
   };
 }
 
-module.exports = { createPatientReply, createRubricEval, createSpeechAudio };
+async function transcribeAudio({ audioBuffer, mimeType = "audio/m4a", filename = "audio.m4a" }) {
+  const { apiKey, baseUrl } = getNavigatorConfig();
+  const FormData = require("form-data");
+
+  const form = new FormData();
+  form.append("file", audioBuffer, { filename, contentType: mimeType });
+  form.append("model", process.env.NAVIGATOR_STT_MODEL);
+
+  const timeoutMs = 60000;
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+
+  try {
+    const formBuffer = form.getBuffer();
+
+    response = await fetch(`${baseUrl}/v1/audio/transcriptions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        ...form.getHeaders()
+      },
+      body: formBuffer,
+      signal: controller.signal
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") throw new Error("NaviGator Whisper timed out");
+    throw err;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`NaviGator Whisper error ${response.status}: ${text}`);
+  }
+
+  const data = await response.json();
+  return String(data?.text || "").trim();
+}
+
+module.exports = { createPatientReply, createRubricEval, createSpeechAudio, transcribeAudio };

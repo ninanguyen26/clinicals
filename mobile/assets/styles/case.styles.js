@@ -81,6 +81,7 @@ export const caseStyles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     marginBottom: 10,
+    backgroundColor: "#fafafa",
   },
 
   inputContainer: {
@@ -344,5 +345,65 @@ export const caseStyles = StyleSheet.create({
 
   resumeSecondaryButtonText: {
     fontWeight: "600",
+  },
+
+  // Error / loading states
+  loadErrorTitle: {
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+
+  // Results flat list
+  resultsFlatListContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 20,
+  },
+
+  resultsHeaderContainer: {
+    gap: 10,
+    marginBottom: 12,
+  },
+
+  criterionStatusText: {
+    fontWeight: "700",
+  },
+
+  // Chat messages
+  messageSenderLabel: {
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+
+  // Empty chat hint
+  chatHintContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+
+  chatHintText: {
+    color: "#555",
+  },
+
+  // Done interview button wrapper
+  doneButtonContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+
+  // HPI stage wrapper
+  hpiStageContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    gap: 10,
+  },
+
+  // Layout
+  keyboardView: {
+    flex: 1,
+  },
+
+  // Generic button label
+  buttonText: {
+    fontWeight: "700",
   },
 });
