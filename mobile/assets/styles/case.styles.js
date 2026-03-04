@@ -32,6 +32,16 @@ export const caseStyles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
   },
+  avatarClip: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: "hidden",
+  },
+  avatarVideo: {
+    width: "100%",
+    height: "100%",
+  },
 
   title: {
     fontSize: 20,

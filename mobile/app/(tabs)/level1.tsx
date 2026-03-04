@@ -15,6 +15,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useUser } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
 import { Audio } from "expo-av";
+import { VideoView, useVideoPlayer } from "expo-video";
 import * as FileSystem from "expo-file-system/legacy";
 import { caseStyles } from "../../assets/styles/case.styles";
 
@@ -28,9 +29,20 @@ const VOICE_PREF_KEY = "voice_output_enabled";
 const PATIENT_IMAGES: Record<string, any> = {
   uti_level1: require("../../assets/patients/uti_level1.png"),
 };
-const PATIENT_TALKING_IMAGES: Record<string, any> = {
-  uti_level1: require("../../assets/patients/uti_level1_talk.png"),
+const PATIENT_TALKING_VIDEO_LOOPS: Record<string, any> = {
+  // Replace this file with a SadTalker output clip for more natural motion.
+  uti_level1: require("../../assets/patients/uti_level1_talk_loop.mp4"),
 };
+
+function getMimeTypeFromRecordingUri(uri: string) {
+  const normalized = String(uri || "").toLowerCase();
+  if (normalized.endsWith(".wav")) return "audio/wav";
+  if (normalized.endsWith(".caf")) return "audio/x-caf";
+  if (normalized.endsWith(".3gp")) return "audio/3gpp";
+  if (normalized.endsWith(".aac")) return "audio/aac";
+  if (normalized.endsWith(".mp3")) return "audio/mpeg";
+  return "audio/m4a";
+}
 
 function getRequestTimeoutMs(path: string, method: string) {
   if (method === "POST" && /^\/conversations\/[^/]+\/submit$/.test(path)) {
@@ -219,7 +231,12 @@ export default function Level1Screen() {
     return Array.isArray(raw) ? raw[0] : raw || "uti_level1";
   }, [params.caseId]);
   const patientImage = PATIENT_IMAGES[caseId] || PATIENT_IMAGES.uti_level1;
-  const patientTalkingImage = PATIENT_TALKING_IMAGES[caseId] || patientImage;
+  const patientTalkingVideoLoop =
+    PATIENT_TALKING_VIDEO_LOOPS[caseId] || PATIENT_TALKING_VIDEO_LOOPS.uti_level1;
+  const avatarVideoPlayer = useVideoPlayer(patientTalkingVideoLoop, (player) => {
+    player.loop = true;
+    player.muted = true;
+  });
 
   const [loadingCase, setLoadingCase] = useState(true);
   const [sending, setSending] = useState(false);
@@ -242,36 +259,75 @@ export default function Level1Screen() {
   const [savedConversationId, setSavedConversationId] = useState<string | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [talkFrameOpen, setTalkFrameOpen] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
   const soundFilePathRef = useRef<string | null>(null);
   const voiceEnabledRef = useRef(true);
-  const talkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [recordingBusy, setRecordingBusy] = useState(false);
 
   const startRecording = async () => {
-    await Audio.requestPermissionsAsync();
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY
-    );
-    recordingRef.current = recording;
-    setIsRecording(true);
+    if (recordingBusy || transcribing || isRecording) return;
+
+    setRecordingBusy(true);
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        console.warn("Microphone permission not granted.");
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+
+      recordingRef.current = recording;
+      setIsRecording(true);
+    } catch (err) {
+      console.warn("Failed to start recording:", err);
+      recordingRef.current = null;
+      setIsRecording(false);
+    } finally {
+      setRecordingBusy(false);
+    }
   };
 
   const stopRecordingAndTranscribe = async () => {
+    if (recordingBusy) return;
     const recording = recordingRef.current;
     if (!recording) return;
 
-    await recording.stopAndUnloadAsync();
+    setRecordingBusy(true);
+    setIsRecording(false);
+    recordingRef.current = null;
+
+    let uri: string | null = null;
+    try {
+      await recording.stopAndUnloadAsync();
+      uri = recording.getURI();
+    } catch (err) {
+      console.warn("Failed to stop recording:", err);
+    } finally {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      }).catch(() => {});
+    }
+
+    if (!uri) {
+      setRecordingBusy(false);
+      return;
+    }
+
     setIsRecording(false);
     setTranscribing(true);
-    const uri = recording.getURI();
-    recordingRef.current = null;
-    if (!uri) return;
 
     try {
       const audioBase64 = await FileSystem.readAsStringAsync(uri, {
@@ -281,7 +337,10 @@ export default function Level1Screen() {
 
       const data = await request("/voice/transcribe", {
         method: "POST",
-        body: { audio_base64: audioBase64, mime_type: "audio/m4a" },
+        body: {
+          audio_base64: audioBase64,
+          mime_type: getMimeTypeFromRecordingUri(uri),
+        },
       });
 
       if (data?.text) setInput(data.text);
@@ -289,6 +348,7 @@ export default function Level1Screen() {
       console.warn("Transcription failed:", err);
     } finally {
       setTranscribing(false);
+      setRecordingBusy(false);
     }
   };
 
@@ -488,32 +548,17 @@ export default function Level1Screen() {
     voiceEnabledRef.current = voiceEnabled;
   }, [voiceEnabled]);
 
-  useEffect(() => {
-    const shouldAnimateTalkingImage = isSpeaking && stage === "chat" && voiceEnabled;
+  const shouldPlayTalkingVideo = isSpeaking && stage === "chat" && voiceEnabled;
 
-    if (!shouldAnimateTalkingImage) {
-      if (talkTimerRef.current) {
-        clearInterval(talkTimerRef.current);
-        talkTimerRef.current = null;
-      }
-      setTalkFrameOpen(false);
+  useEffect(() => {
+    if (shouldPlayTalkingVideo) {
+      avatarVideoPlayer.play();
       return;
     }
 
-    setTalkFrameOpen(true);
-    const intervalId = setInterval(() => {
-      setTalkFrameOpen((prev) => !prev);
-    }, 120);
-    talkTimerRef.current = intervalId;
-
-    return () => {
-      clearInterval(intervalId);
-      if (talkTimerRef.current === intervalId) {
-        talkTimerRef.current = null;
-      }
-      setTalkFrameOpen(false);
-    };
-  }, [isSpeaking, stage, voiceEnabled]);
+    avatarVideoPlayer.pause();
+    avatarVideoPlayer.currentTime = 0;
+  }, [avatarVideoPlayer, shouldPlayTalkingVideo]);
 
   useEffect(() => {
     if (stage !== "chat") {
@@ -529,13 +574,15 @@ export default function Level1Screen() {
 
   useEffect(() => {
     return () => {
-      if (talkTimerRef.current) {
-        clearInterval(talkTimerRef.current);
-        talkTimerRef.current = null;
+      const recording = recordingRef.current;
+      recordingRef.current = null;
+      if (recording) {
+        recording.stopAndUnloadAsync().catch(() => {});
       }
+      avatarVideoPlayer.pause();
       void stopSpeechPlayback();
     };
-  }, [stopSpeechPlayback]);
+  }, [avatarVideoPlayer, stopSpeechPlayback]);
 
   useEffect(() => {
     ensureConversation();
@@ -764,8 +811,6 @@ export default function Level1Screen() {
     );
   }
 
-  const displayedPatientImage = talkFrameOpen ? patientTalkingImage : patientImage;
-
   return (
     <SafeAreaView style={caseStyles.container}>
       {showResumePrompt && (
@@ -801,11 +846,23 @@ export default function Level1Screen() {
         {/* Header */}
         <View style={caseStyles.header}>
           <View style={caseStyles.avatarWrapper}>
-            <Image
-              source={displayedPatientImage}
-              style={caseStyles.avatar}
-              resizeMode="cover"
-            />
+            <View style={caseStyles.avatarClip}>
+              {shouldPlayTalkingVideo ? (
+                <VideoView
+                  player={avatarVideoPlayer}
+                  style={caseStyles.avatarVideo}
+                  contentFit="cover"
+                  nativeControls={false}
+                  allowsPictureInPicture={false}
+                />
+              ) : (
+                <Image
+                  source={patientImage}
+                  style={caseStyles.avatar}
+                  resizeMode="cover"
+                />
+              )}
+            </View>
           </View>
 
           <Text style={caseStyles.title}>
@@ -1002,10 +1059,11 @@ export default function Level1Screen() {
                   />
                   <Pressable
                     onPress={isRecording ? stopRecordingAndTranscribe : startRecording}
-                    disabled={sending || transcribing}
+                    disabled={sending || transcribing || recordingBusy}
                     style={({ pressed }) => ({
                       ...caseStyles.sendButton,
-                      opacity: sending || transcribing ? 0.4 : pressed ? 0.6 : 1,
+                      opacity:
+                        sending || transcribing || recordingBusy ? 0.4 : pressed ? 0.6 : 1,
                       marginRight: 4,
                     })}
                   >
