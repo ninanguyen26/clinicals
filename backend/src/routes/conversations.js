@@ -4,6 +4,7 @@ const { ensureCaseFromId } = require("../utils/caseSync");
 const { getOrCreateUser } = require("../utils/userResolver");
 const { loadCase, loadGrading } = require("../utils/caseLoader");
 const { gradeConversation } = require("../utils/grading");
+const { sendResultsEmail } = require("../utils/emailResults");
 
 const router = express.Router();
 
@@ -283,6 +284,16 @@ router.post("/:id/submit", async (req, res, next) => {
     });
 
     await updateUserProgress(user.id, result.score);
+
+    if (user.email) {
+      console.log("[email] user.name:", user.name, "user.email:", user.email);
+      sendResultsEmail({
+        toEmail: user.email,
+        userName: user.name,
+        caseId,
+        result,
+      }).catch((err) => console.warn("Failed to send results email:", err));
+    }
 
     res.json(result);
   } catch (err) {

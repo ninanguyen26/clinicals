@@ -848,6 +848,17 @@ export default function Level1Screen() {
           </View>
         </View>
       )}
+      {submitting && (
+        <View style={caseStyles.gradingOverlay}>
+          <View style={caseStyles.gradingCard}>
+            <ActivityIndicator size="large" />
+            <Text style={caseStyles.gradingTitle}>Grading your case...</Text>
+            <Text style={caseStyles.gradingSubText}>
+              This may take up to a minute. Please wait.
+            </Text>
+          </View>
+        </View>
+      )}
       <KeyboardAvoidingView
         style={caseStyles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

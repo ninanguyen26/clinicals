@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { COLORS } from "../../constants/colors";
 
 export const caseStyles = StyleSheet.create({
   container: {
@@ -91,7 +92,7 @@ export const caseStyles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     marginBottom: 10,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#fbfcfd",
   },
 
   inputContainer: {
@@ -415,5 +416,34 @@ export const caseStyles = StyleSheet.create({
   // Generic button label
   buttonText: {
     fontWeight: "700",
+  },
+
+  gradingOverlay: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    zIndex: 99,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+
+  gradingCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 32,
+    width: "100%",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  gradingTitle: {
+    fontWeight: "700",
+    fontSize: 17,
+  },
+
+  gradingSubText: {
+    color: "#6b7280",
+    textAlign: "center",
   },
 });
