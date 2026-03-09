@@ -8,7 +8,7 @@ const COMMON_CRITERIA = {
     section: "professional",
     label: "Introduces self by name",
     prompt_hint:
-      "Award only if the student explicitly introduces themselves by name (for example: 'My name is ...').",
+      "Award only if the user/clinician (not the patient) explicitly introduces themselves by name (for example: 'My name is ...').",
     points: 0.5,
     source: "user",
     tags: ["professional"],
@@ -22,7 +22,7 @@ const COMMON_CRITERIA = {
     section: "professional",
     label: "States professional role/title",
     prompt_hint:
-      "Award only if the student explicitly states their clinical/professional role or title (for example: medical student, doctor, NP student, APRN, physician assistant).",
+      "Award only if the user/clinician (not the patient) explicitly states their clinical/professional role or title (for example: medical student, doctor, NP student, APRN, physician assistant).",
     points: 0.5,
     source: "user",
     tags: ["professional"],
@@ -54,7 +54,7 @@ const COMMON_CRITERIA = {
     id: "professional_preferred_name",
     section: "professional",
     label: "Asks preferred name",
-    prompt_hint: "Student asks how the patient prefers to be addressed.",
+    prompt_hint: "The user/clinician (not the patient) asks how the patient prefers to be addressed.",
     points: 1,
     source: "user",
     tags: ["professional"],
@@ -67,7 +67,8 @@ const COMMON_CRITERIA = {
     id: "professional_opening_question",
     section: "professional",
     label: "Asks opening question",
-    prompt_hint: "Student invites the chief complaint (for example, what brings you in today).",
+    prompt_hint:
+      "The user/clinician (not the patient) invites the chief complaint with an opening question (for example, what brings you in today).",
     points: 1,
     source: "user",
     tags: ["professional"],
@@ -86,7 +87,7 @@ const COMMON_CRITERIA = {
     section: "professional",
     label: "Confirms patient identity using two identifiers",
     prompt_hint:
-      "Student verifies identity with at least two identifiers, including name and date of birth.",
+      "The user/clinician (not the patient) verifies identity with at least two identifiers, including name and date of birth.",
     points: 1,
     source: "user",
     mode: "llm_or_rule",
