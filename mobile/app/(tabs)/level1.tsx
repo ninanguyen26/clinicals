@@ -159,6 +159,9 @@ type SubmissionResult = {
   criteria_results: CriterionResult[];
   earned_points: number | null;
   available_points: number | null;
+  case_points_awarded?: number | null;
+  user_total_points?: number | null;
+  user_level?: number | null;
   missed_required_questions: string[];
   missed_red_flags: string[];
   critical_fails_triggered: string[];
@@ -198,29 +201,32 @@ function normalizeSubmissionPayload(payload: any): SubmissionResult {
     : [];
 
   return {
-  score,
-  passing_score: passingScore,
-  passed,
-  feedback: String(payload?.feedback ?? details?.feedback ?? ""),
-  section_scores: sectionScores,
-  criteria_results: criteriaResults,
-  earned_points: payload?.earned_points ?? details?.earned_points ?? null,
-  available_points: payload?.available_points ?? details?.available_points ?? null,
-  missed_required_questions: Array.isArray(payload?.missed_required_questions)
-    ? payload.missed_required_questions
-    : Array.isArray(details?.missed_required_questions)
-    ? details.missed_required_questions
-    : [],
-  missed_red_flags: Array.isArray(payload?.missed_red_flags)
-    ? payload.missed_red_flags
-    : Array.isArray(details?.missed_red_flags)
-    ? details.missed_red_flags
-    : [],
-  critical_fails_triggered: Array.isArray(payload?.critical_fails_triggered)
-    ? payload.critical_fails_triggered
-    : Array.isArray(details?.critical_fails_triggered)
-    ? details.critical_fails_triggered
-    : [],
+    score,
+    passing_score: passingScore,
+    passed,
+    feedback: String(payload?.feedback ?? details?.feedback ?? ""),
+    section_scores: sectionScores,
+    criteria_results: criteriaResults,
+    earned_points: payload?.earned_points ?? details?.earned_points ?? null,
+    available_points: payload?.available_points ?? details?.available_points ?? null,
+    case_points_awarded: payload?.case_points_awarded ?? details?.case_points_awarded ?? null,
+    user_total_points: payload?.user_total_points ?? details?.user_total_points ?? null,
+    user_level: payload?.user_level ?? details?.user_level ?? null,
+    missed_required_questions: Array.isArray(payload?.missed_required_questions)
+      ? payload.missed_required_questions
+      : Array.isArray(details?.missed_required_questions)
+      ? details.missed_required_questions
+      : [],
+    missed_red_flags: Array.isArray(payload?.missed_red_flags)
+      ? payload.missed_red_flags
+      : Array.isArray(details?.missed_red_flags)
+      ? details.missed_red_flags
+      : [],
+    critical_fails_triggered: Array.isArray(payload?.critical_fails_triggered)
+      ? payload.critical_fails_triggered
+      : Array.isArray(details?.critical_fails_triggered)
+      ? details.critical_fails_triggered
+      : [],
   };
 }
 
@@ -804,6 +810,22 @@ export default function Level1Screen() {
     setShowResumePrompt(false);
   }, [caseId]);
 
+  const retryCase = useCallback(async () => {
+    await stopSpeechPlayback();
+    await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
+
+    setSavedConversationId(null);
+    setShowResumePrompt(false);
+    setConversationId(null);
+    setPendingMessages([]);
+    setMessages([]);
+    setInput("");
+    setStage("chat");
+    setHpiText("");
+    setSubmitError(null);
+    setSubmissionResult(null);
+  }, [caseId, stopSpeechPlayback]);
+
   if (loadingCase) {
     return (
       <SafeAreaView style={caseStyles.container}>
@@ -958,6 +980,19 @@ export default function Level1Screen() {
                     </Text>
                   )}
 
+                  {submissionResult.case_points_awarded != null ? (
+                    <Text style={caseStyles.resultsPointsText}>
+                      Case points earned: {submissionResult.case_points_awarded}
+                    </Text>
+                  ) : null}
+
+                  {submissionResult.user_total_points != null ? (
+                    <Text style={caseStyles.resultsPointsText}>
+                      Total user points: {submissionResult.user_total_points}
+                      {submissionResult.user_level != null ? ` · level ${submissionResult.user_level}` : ""}
+                    </Text>
+                  ) : null}
+
                   {/* Critical fails */}
                   {submissionResult.critical_fails_triggered.length > 0 && (
                     <View style={caseStyles.resultsCriticalBox}>
@@ -1002,6 +1037,23 @@ export default function Level1Screen() {
                 </View>
 
                 <Text style={caseStyles.resultsSectionTitle}>Criterion Breakdown</Text>
+              </View>
+            }
+            ListFooterComponent={
+              <View style={caseStyles.resultsActionsContainer}>
+                <Text style={caseStyles.resultsRetryNote}>
+                  Retry starts a brand new attempt. Your highest point total for this case is the one kept.
+                </Text>
+                <Pressable
+                  onPress={retryCase}
+                  style={({ pressed }) => ({
+                    ...caseStyles.outlineButton,
+                    flex: undefined,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={caseStyles.outlineButtonText}>Retry Case</Text>
+                </Pressable>
               </View>
             }
             renderItem={({ item }) => (

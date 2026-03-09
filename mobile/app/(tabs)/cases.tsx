@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 
 export default function HomeScreen() {
@@ -11,8 +12,21 @@ export default function HomeScreen() {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const [loadingCases, setLoadingCases] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cases, setCases] = useState<{ caseId: string; title: string }[]>([]);
+  const [points, setPoints] = useState(0);
+  const [level, setLevel] = useState(1);
+
+  const userHeaders = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (user?.id) headers["x-clerk-user-id"] = user.id;
+    if (user?.fullName) headers["x-user-name"] = user.fullName;
+    const email = user?.primaryEmailAddress?.emailAddress;
+    if (email) headers["x-user-email"] = email;
+    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
+    return headers;
+  }, [user]);
 
   const displayName = useMemo(() => {
     // username, fallback to email, then "there"
@@ -40,9 +54,34 @@ export default function HomeScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    loadCases();
-  }, [loadCases]);
+  const loadProgress = useCallback(async () => {
+    if (!userHeaders["x-clerk-user-id"]) {
+      setPoints(0);
+      setLevel(1);
+      setLoadingProgress(false);
+      return;
+    }
+
+    try {
+      setLoadingProgress(true);
+      const data = await api.getProgress(userHeaders);
+      setPoints(Number(data?.points ?? 0) || 0);
+      setLevel(Math.max(1, Number(data?.level ?? 1) || 1));
+    } catch (err) {
+      console.warn("Failed to load user progress:", err);
+      setPoints(0);
+      setLevel(1);
+    } finally {
+      setLoadingProgress(false);
+    }
+  }, [userHeaders]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCases();
+      loadProgress();
+    }, [loadCases, loadProgress])
+  );
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -93,6 +132,38 @@ export default function HomeScreen() {
       </View>
 
       <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
+        <View
+          style={{
+            alignSelf: "center",
+            minWidth: 180,
+            borderWidth: 1,
+            borderColor: "#ddd6fe",
+            backgroundColor: "#faf5ff",
+            borderRadius: 16,
+            paddingHorizontal: 18,
+            paddingVertical: 12,
+            marginBottom: 16,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: "700", color: "#6d28d9", letterSpacing: 0.3 }}>
+            TOTAL POINTS
+          </Text>
+          {loadingProgress ? (
+            <ActivityIndicator style={{ marginTop: 8 }} />
+          ) : (
+            <>
+              <Text style={{ fontSize: 28, fontWeight: "800", color: "#4c1d95", marginTop: 4 }}>
+                {points}
+              </Text>
+              <Text style={{ color: "#6b7280", marginTop: 2 }}>Current level: {level}</Text>
+              <Text style={{ color: "#6b7280", marginTop: 2, textAlign: "center", fontSize: 12 }}>
+                Highest case score is kept when you retry.
+              </Text>
+            </>
+          )}
+        </View>
+
         <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 4 }}>Cases</Text>
         <Text style={{ color: "#6b7280" }}>Select a case to begin the patient simulation.</Text>
       </View>

@@ -375,6 +375,18 @@ export const caseStyles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  resultsActionsContainer: {
+    gap: 10,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+
+  resultsRetryNote: {
+    color: "#6b7280",
+    textAlign: "center",
+    paddingHorizontal: 8,
+  },
+
   criterionStatusText: {
     fontWeight: "700",
   },

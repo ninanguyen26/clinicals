@@ -5,6 +5,12 @@ const { getOrCreateUser } = require("../utils/userResolver");
 const { loadCase, loadGrading } = require("../utils/caseLoader");
 const { gradeConversation } = require("../utils/grading");
 const { sendResultsEmail } = require("../utils/emailResults");
+const { syncUserProgress } = require("../services/userProgress");
+const {
+  calculateCasePointsAwarded,
+  getSubmissionAvailablePoints,
+  getSubmissionEarnedPoints,
+} = require("../utils/progressSummary");
 
 const router = express.Router();
 
@@ -141,31 +147,45 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-async function updateUserProgress(userId, score) {
-  const existing = await prisma.userProgress.findUnique({ where: { userId } });
-  const xpGain = Number(score) || 0;
-
-  if (!existing) {
-    const level = Math.floor(xpGain / 100) + 1;
-    return prisma.userProgress.create({
-      data: {
-        userId,
-        xp: xpGain,
-        level
-      }
+function buildSavedSubmissionResponse(conversation, progressSummary) {
+  const savedDetails = conversation.submission.details || {};
+  const passingScore = Number(savedDetails.passing_score || 84);
+  const passed =
+    typeof savedDetails.passed === "boolean"
+      ? savedDetails.passed
+      : conversation.submission.score >= passingScore;
+  const earnedPoints = getSubmissionEarnedPoints(conversation.submission);
+  const availablePoints = getSubmissionAvailablePoints(conversation.submission);
+  const casePointsAwarded =
+    savedDetails.case_points_awarded ??
+    calculateCasePointsAwarded({
+      level: conversation.patientCase.level,
+      earnedPoints,
     });
-  }
 
-  const nextXp = existing.xp + xpGain;
-  const nextLevel = Math.max(existing.level, Math.floor(nextXp / 100) + 1);
-
-  return prisma.userProgress.update({
-    where: { userId },
-    data: {
-      xp: nextXp,
-      level: nextLevel
-    }
-  });
+  return {
+    score: conversation.submission.score,
+    feedback: conversation.submission.feedback,
+    passing_score: passingScore,
+    passed,
+    can_unlock_next_case:
+      typeof savedDetails.can_unlock_next_case === "boolean"
+        ? savedDetails.can_unlock_next_case
+        : passed,
+    earned_points: savedDetails.earned_points ?? earnedPoints,
+    available_points: savedDetails.available_points ?? availablePoints,
+    total_points: savedDetails.total_points ?? null,
+    omitted_points: savedDetails.omitted_points ?? 0,
+    case_points_awarded: casePointsAwarded,
+    user_total_points: progressSummary.totalPoints,
+    user_level: progressSummary.level,
+    section_scores: savedDetails.section_scores || [],
+    criteria_results: savedDetails.criteria_results || [],
+    missed_required_questions: savedDetails.missed_required_questions || [],
+    missed_red_flags: savedDetails.missed_red_flags || [],
+    critical_fails_triggered: savedDetails.critical_fails_triggered || [],
+    details: savedDetails
+  };
 }
 
 router.post("/:id/submit", async (req, res, next) => {
@@ -197,33 +217,8 @@ router.post("/:id/submit", async (req, res, next) => {
     }
 
     if (conversation.submission) {
-      const savedDetails = conversation.submission.details || {};
-      const passingScore = Number(savedDetails.passing_score || 84);
-      const passed =
-        typeof savedDetails.passed === "boolean"
-          ? savedDetails.passed
-          : conversation.submission.score >= passingScore;
-
-      res.json({
-        score: conversation.submission.score,
-        feedback: conversation.submission.feedback,
-        passing_score: passingScore,
-        passed,
-        can_unlock_next_case:
-          typeof savedDetails.can_unlock_next_case === "boolean"
-            ? savedDetails.can_unlock_next_case
-            : passed,
-        earned_points: savedDetails.earned_points ?? null,
-        available_points: savedDetails.available_points ?? null,
-        total_points: savedDetails.total_points ?? null,
-        omitted_points: savedDetails.omitted_points ?? 0,
-        section_scores: savedDetails.section_scores || [],
-        criteria_results: savedDetails.criteria_results || [],
-        missed_required_questions: savedDetails.missed_required_questions || [],
-        missed_red_flags: savedDetails.missed_red_flags || [],
-        critical_fails_triggered: savedDetails.critical_fails_triggered || [],
-        details: savedDetails
-      });
+      const progressSummary = await syncUserProgress(user.id);
+      res.json(buildSavedSubmissionResponse(conversation, progressSummary));
       return;
     }
 
@@ -260,6 +255,11 @@ router.post("/:id/submit", async (req, res, next) => {
       }
     });
 
+    const casePointsAwarded = calculateCasePointsAwarded({
+      level: conversation.patientCase.level,
+      earnedPoints: result.earned_points ?? 0,
+    });
+
     await prisma.submission.create({
       data: {
         conversationId: conversation.id,
@@ -273,6 +273,7 @@ router.post("/:id/submit", async (req, res, next) => {
           available_points: result.available_points ?? null,
           total_points: result.total_points ?? null,
           omitted_points: result.omitted_points ?? 0,
+          case_points_awarded: casePointsAwarded,
           hpi: String(hpi || "").trim() || null,
           section_scores: result.section_scores || [],
           criteria_results: result.criteria_results || [],
@@ -283,7 +284,7 @@ router.post("/:id/submit", async (req, res, next) => {
       }
     });
 
-    await updateUserProgress(user.id, result.score);
+    const progressSummary = await syncUserProgress(user.id);
 
     if (user.email) {
       console.log("[email] user.name:", user.name, "user.email:", user.email);
@@ -295,7 +296,12 @@ router.post("/:id/submit", async (req, res, next) => {
       }).catch((err) => console.warn("Failed to send results email:", err));
     }
 
-    res.json(result);
+    res.json({
+      ...result,
+      case_points_awarded: casePointsAwarded,
+      user_total_points: progressSummary.totalPoints,
+      user_level: progressSummary.level,
+    });
   } catch (err) {
     next(err);
   }

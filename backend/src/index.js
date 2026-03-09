@@ -7,6 +7,7 @@ const chatRouter = require("./routes/chat");
 const gradeRouter = require("./routes/grade");
 const conversationsRouter = require("./routes/conversations");
 const voiceRouter = require("./routes/voice");
+const progressRouter = require("./routes/progress");
 const { syncAllCases } = require("./utils/caseSync");
 
 dotenv.config();
@@ -20,6 +21,7 @@ app.use("/api/chat", chatRouter);
 app.use("/api/grade", gradeRouter);
 app.use("/api/conversations", conversationsRouter);
 app.use("/api/voice", voiceRouter);
+app.use("/api/progress", progressRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });

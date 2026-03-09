@@ -64,6 +64,7 @@ export const api = {
   // ---- Example resource calls (edit paths to match your backend)
   getCases: () => request("/cases"),
   getCaseById: (id) => request(`/cases/${id}`),
+  getProgress: (headers) => request("/progress", { headers }),
 
   // Example: create a case
   createCase: (payload) =>
