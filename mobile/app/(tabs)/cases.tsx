@@ -5,6 +5,7 @@ import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
+import { casesStyles } from "../../assets/styles/cases.styles";
 
 export default function HomeScreen() {
   const { signOut } = useClerk();
@@ -95,77 +96,47 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          borderBottomWidth: 1,
-          borderColor: "#e5e7eb",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700" }}>
+    <SafeAreaView style={casesStyles.container}>
+      <View style={casesStyles.headerBar}>
+        <View style={casesStyles.headerLeft}>
+          <Text style={casesStyles.headerName}>
             Hi, {displayName}
           </Text>
-          <Text numberOfLines={1} style={{ color: "#4b5563" }}>
+          <Text numberOfLines={1} style={casesStyles.headerEmail}>
             {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""}
           </Text>
         </View>
         <Pressable
           onPress={handleSignOut}
           disabled={signingOut}
-          style={{
-            borderWidth: 1,
-            borderColor: "#d1d5db",
-            borderRadius: 8,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            opacity: signingOut ? 0.6 : 1,
-          }}
+          style={[casesStyles.signOutButton, { opacity: signingOut ? 0.6 : 1 }]}
         >
-          <Text style={{ fontWeight: "600" }}>{signingOut ? "Signing out..." : "Sign Out"}</Text>
+          <Text style={casesStyles.signOutButtonText}>{signingOut ? "Signing out..." : "Sign Out"}</Text>
         </Pressable>
       </View>
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
-        <View
-          style={{
-            alignSelf: "center",
-            minWidth: 180,
-            borderWidth: 1,
-            borderColor: "#ddd6fe",
-            backgroundColor: "#faf5ff",
-            borderRadius: 16,
-            paddingHorizontal: 18,
-            paddingVertical: 12,
-            marginBottom: 16,
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: "700", color: "#6d28d9", letterSpacing: 0.3 }}>
+      <View style={casesStyles.pointsSection}>
+        <View style={casesStyles.pointsCard}>
+          <Text style={casesStyles.pointsLabel}>
             TOTAL POINTS
           </Text>
           {loadingProgress ? (
             <ActivityIndicator style={{ marginTop: 8 }} />
           ) : (
             <>
-              <Text style={{ fontSize: 28, fontWeight: "800", color: "#4c1d95", marginTop: 4 }}>
+              <Text style={casesStyles.pointsValue}>
                 {points}
               </Text>
-              <Text style={{ color: "#6b7280", marginTop: 2 }}>Current level: {level}</Text>
-              <Text style={{ color: "#6b7280", marginTop: 2, textAlign: "center", fontSize: 12 }}>
+              <Text style={casesStyles.pointsSubText}>Current level: {level}</Text>
+              <Text style={casesStyles.pointsRetryNote}>
                 Highest case score is kept when you retry.
               </Text>
             </>
           )}
         </View>
 
-        <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 4 }}>Cases</Text>
-        <Text style={{ color: "#6b7280" }}>Select a case to begin the patient simulation.</Text>
+        <Text style={casesStyles.casesTitle}>Cases</Text>
+        <Text style={casesStyles.casesSubText}>Select a case to begin the patient simulation.</Text>
       </View>
 
       {loadingCases ? (
@@ -174,19 +145,12 @@ export default function HomeScreen() {
         </View>
       ) : error ? (
         <View style={{ paddingHorizontal: 16, gap: 10 }}>
-          <Text style={{ color: "#b91c1c", fontWeight: "600" }}>{error}</Text>
+          <Text style={casesStyles.errorText}>{error}</Text>
           <Pressable
             onPress={loadCases}
-            style={{
-              borderWidth: 1,
-              borderColor: "#d1d5db",
-              borderRadius: 10,
-              alignSelf: "flex-start",
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-            }}
+            style={casesStyles.retryButton}
           >
-            <Text style={{ fontWeight: "600" }}>Retry</Text>
+            <Text style={casesStyles.retryButtonText}>Retry</Text>
           </Pressable>
         </View>
       ) : (
@@ -195,23 +159,33 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.caseId}
           contentContainerStyle={{ padding: 16, gap: 12 }}
           renderItem={({ item }) => (
-            <Pressable
-              onPress={() => router.push({ pathname: "/(tabs)/level1", params: { caseId: item.caseId } })}
-              style={({ pressed }) => ({
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 12,
-                padding: 14,
-                backgroundColor: pressed ? "#f9fafb" : "#ffffff",
-              })}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "700" }}>{item.title || item.caseId}</Text>
-              <Text style={{ color: "#6b7280", marginTop: 4 }}>Case ID: {item.caseId}</Text>
-            </Pressable>
+            <View style={casesStyles.caseCard}>
+              <Pressable
+                onPress={() => router.push({ pathname: "/(tabs)/level1", params: { caseId: item.caseId } })}
+                style={({ pressed }) => ({
+                  padding: 14,
+                  backgroundColor: pressed ? "#f9fafb" : "#ffffff",
+                })}
+              >
+                <Text style={casesStyles.caseCardTitle}>{item.title || item.caseId}</Text>
+                <Text style={casesStyles.caseCardSubText}>Case ID: {item.caseId}</Text>
+              </Pressable>
+              <View style={casesStyles.attemptsRow}>
+                <Pressable
+                  onPress={() => router.push({ pathname: "/attempts", params: { caseId: item.caseId } })}
+                  style={({ pressed }) => (
+                    [casesStyles.attemptsButton,
+                    {backgroundColor: pressed ? "#f3f4f6" : "#f9fafb"}]
+                  )}
+                >
+                  <Text style={casesStyles.attemptsButtonText}>Previous Attempts →</Text>
+                </Pressable>
+              </View>
+            </View>
           )}
           ListEmptyComponent={
             <View style={{ paddingTop: 24 }}>
-              <Text style={{ color: "#6b7280" }}>No cases found.</Text>
+              <Text style={casesStyles.emptyText}>No cases found.</Text>
             </View>
           }
         />

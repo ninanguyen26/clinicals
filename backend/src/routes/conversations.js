@@ -59,6 +59,45 @@ router.post("/", async (req, res, next) => {
   }
 });
 
+router.get("/by-case/:caseId", async (req, res, next) => {
+  try {
+    const user = await resolveUser(req);
+
+    const caseRecord = await prisma.case.findUnique({
+      where: { caseId: req.params.caseId }
+    });
+
+    if (!caseRecord) {
+      res.status(404).json({ error: "Case not found" });
+      return;
+    }
+
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        userId: user.id,
+        caseId: caseRecord.id,
+        status: "SUBMITTED"
+      },
+      include: {
+        submission: true
+      },
+      orderBy: { submittedAt: "desc" }
+    });
+
+    const attempts = conversations.map((conv, index) => ({
+      conversationId: conv.id,
+      submittedAt: conv.submittedAt,
+      score: conv.submission?.score ?? null,
+      passed: conv.submission?.details?.passed ?? null,
+      attemptNumber: conversations.length - index
+    }));
+
+    res.json(attempts);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/:id/messages", async (req, res, next) => {
   try {
     const { role, content } = req.body || {};
@@ -307,7 +346,5 @@ router.post("/:id/submit", async (req, res, next) => {
     next(err);
   }
 });
-
-
 
 module.exports = router;

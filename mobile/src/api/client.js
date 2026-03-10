@@ -43,7 +43,7 @@ async function request(path, { method = "GET", body, headers } = {}) {
 }
 
 export const api = {
-  // ---- Health / ping (you may need to change this path)
+  // ---- Test: health / ping
   health: () => request("/health"),
 
   // ---- Auth (edit paths + fields to match your backend)
@@ -60,6 +60,9 @@ export const api = {
   logout: async () => {
     await SecureStore.deleteItemAsync("token");
   },
+
+  // to view previous attempts for a case
+  getAttemptsByCase: (caseId, headers) => request(`/conversations/by-case/${caseId}`, { headers }),
 
   // ---- Example resource calls (edit paths to match your backend)
   getCases: () => request("/cases"),
