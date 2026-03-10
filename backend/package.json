@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node src/index.js",
+    "test": "node --test test/*.test.js",
+    "test:presentation2": "npm test && npm run rubric:calibrate",
     "rubric:audit": "node scripts/auditRubric.js",
     "rubric:calibrate": "GRADING_LLM_DISABLED=true node scripts/calibrateRubric.js",
     "prisma": "prisma",

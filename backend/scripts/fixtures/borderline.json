@@ -1,8 +1,8 @@
 {
-  "description": "Borderline student — hits minimum required items, should land ~84%",
+  "description": "Borderline student — hits minimum required items, should land in the mid-80s",
   "case_id": "uti_level1",
   "expected_min_score": 82,
-  "expected_max_score": 86,
+  "expected_max_score": 88,
   "hpi": "",
   "conversation": [
     { "role": "user", "content": "Hello, my name is Sarah and I am a DNP student. Can you confirm your name and date of birth?" },

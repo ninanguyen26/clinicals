@@ -11,6 +11,7 @@ const {
   getSubmissionAvailablePoints,
   getSubmissionEarnedPoints,
 } = require("../utils/progressSummary");
+const { buildAttemptSummaries } = require("../utils/attemptHistory");
 
 const router = express.Router();
 
@@ -84,13 +85,7 @@ router.get("/by-case/:caseId", async (req, res, next) => {
       orderBy: { submittedAt: "desc" }
     });
 
-    const attempts = conversations.map((conv, index) => ({
-      conversationId: conv.id,
-      submittedAt: conv.submittedAt,
-      score: conv.submission?.score ?? null,
-      passed: conv.submission?.details?.passed ?? null,
-      attemptNumber: conversations.length - index
-    }));
+    const attempts = buildAttemptSummaries(conversations);
 
     res.json(attempts);
   } catch (err) {

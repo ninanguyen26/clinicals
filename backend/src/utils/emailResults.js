@@ -5,19 +5,7 @@ function formatList(items) {
   return items.map((i) => `• ${i}`).join("\n");
 }
 
-async function sendResultsEmail({ toEmail, userName, caseId, result, conversation }) {
-  if (!process.env.EMAIL_USER) return;
-
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT || 587),
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
+function buildResultsEmailContent({ userName, caseId, result, conversation }) {
   const passed = result.passed ? "✅ Passed" : "❌ Not Passed";
 
   const sections = (result.section_scores || [])
@@ -57,12 +45,38 @@ async function sendResultsEmail({ toEmail, userName, caseId, result, conversatio
     .filter((line) => line !== null)
     .join("\n");
 
+  return {
+    subject: `Clinicals Result — ${caseId} — ${result.score}% ${passed}`,
+    text,
+  };
+}
+
+async function sendResultsEmail({ toEmail, userName, caseId, result, conversation }) {
+  if (!process.env.EMAIL_USER) return;
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT || 587),
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const { subject, text } = buildResultsEmailContent({
+    userName,
+    caseId,
+    result,
+    conversation,
+  });
+
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to: toEmail,
-    subject: `Clinicals Result — ${caseId} — ${result.score}% ${passed}`,
+    subject,
     text,
   });
 }
 
-module.exports = { sendResultsEmail };
+module.exports = { sendResultsEmail, buildResultsEmailContent };
