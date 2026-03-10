@@ -293,15 +293,13 @@ export default function AttemptResultScreen() {
                 <View style={attemptResultStyles.transcriptFooter}>
                     <Pressable
                     onPress={() => setShowTranscript((prev) => !prev)}
-                    style={({ pressed }) => ({
-                        borderWidth: 1,
-                        borderColor: "#d1d5db",
-                        borderRadius: 10,
-                        paddingVertical: 12,
-                        alignItems: "center",
+                    style={({ pressed }) => [
+                      attemptResultStyles.transcriptToggleButton,
+                      {
                         backgroundColor: pressed ? "#f3f4f6" : "#f9fafb",
                         marginBottom: showTranscript ? 12 : 0,
-                    })}
+                      },
+                    ]}
                     >
                     <Text style={attemptResultStyles.transcriptToggleText}>
                         {showTranscript ? "Hide Transcript ▲" : "View Transcript ▼"}
