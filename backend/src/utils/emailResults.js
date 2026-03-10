@@ -5,7 +5,7 @@ function formatList(items) {
   return items.map((i) => `• ${i}`).join("\n");
 }
 
-async function sendResultsEmail({ toEmail, userName, caseId, result }) {
+async function sendResultsEmail({ toEmail, userName, caseId, result, conversation }) {
   if (!process.env.EMAIL_USER) return;
 
   const transporter = nodemailer.createTransport({
@@ -27,6 +27,11 @@ async function sendResultsEmail({ toEmail, userName, caseId, result }) {
   const redFlags = formatList(result.missed_red_flags);
   const missedItems = formatList(result.missed_required_questions);
   const criticalFails = formatList(result.critical_fails_triggered);
+  const transcript = Array.isArray(conversation) && conversation.length > 0
+    ? conversation
+        .map((msg) => `[${msg.role.toUpperCase()}]: ${msg.content}`)
+        .join("\n")
+    : null;
 
   const text = [
     `Hi ${userName || "Student"},`,
@@ -46,6 +51,7 @@ async function sendResultsEmail({ toEmail, userName, caseId, result }) {
     `Feedback:`,
     result.feedback || "No feedback provided.",
     ``,
+    transcript ? `\nConversation Transcript:\n${transcript}` : null,
     `— Clinicals`,
   ]
     .filter((line) => line !== null)

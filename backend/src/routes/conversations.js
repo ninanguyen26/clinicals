@@ -293,7 +293,8 @@ router.post("/:id/submit", async (req, res, next) => {
         userName: user.name,
         caseId,
         result,
-      }).catch((err) => console.warn("Failed to send results email:", err));
+        conversation: conversationPayload, 
+      }).catch((err) => console.warn("Failed to send transcript + results email:", err));
     }
 
     res.json({
@@ -306,5 +307,7 @@ router.post("/:id/submit", async (req, res, next) => {
     next(err);
   }
 });
+
+
 
 module.exports = router;
