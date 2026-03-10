@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useUser } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
 import { caseStyles } from "../assets/styles/case.styles";
+import { attemptResultStyles } from "../assets/styles/attempt-result.styles";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
@@ -155,47 +156,30 @@ export default function AttemptResultScreen() {
   useEffect(() => { loadResult(); }, [loadResult]);
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={attemptResultStyles.container}>
       {/* Header */}
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          borderBottomWidth: 1,
-          borderColor: "#e5e7eb",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
+      <View style={attemptResultStyles.headerBar}>
         <Pressable
           onPress={() => router.back()}
-          style={{ paddingVertical: 4, paddingRight: 8 }}
+          style={attemptResultStyles.backButton}
         >
-          <Text style={{ fontSize: 16, color: "#1d4ed8" }}>← Back</Text>
+          <Text style={attemptResultStyles.backButtonText}>← Back</Text>
         </Pressable>
-        <Text style={{ fontSize: 17, fontWeight: "700" }}>Attempt Result</Text>
+        <Text style={attemptResultStyles.headerTitle}>Attempt Result</Text>
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View style={attemptResultStyles.loadingContainer}>
           <ActivityIndicator />
         </View>
       ) : error ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 10 }}>
-          <Text style={{ color: "#b91c1c", fontWeight: "600" }}>{error}</Text>
+        <View style={attemptResultStyles.errorContainer}>
+          <Text style={attemptResultStyles.errorText}>{error}</Text>
           <Pressable
             onPress={loadResult}
-            style={{
-              borderWidth: 1,
-              borderColor: "#d1d5db",
-              borderRadius: 10,
-              alignSelf: "flex-start",
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-            }}
+            style={attemptResultStyles.retryButton}
           >
-            <Text style={{ fontWeight: "600" }}>Retry</Text>
+            <Text style={attemptResultStyles.retryButtonText}>Retry</Text>
           </Pressable>
         </View>
       ) : result ? (
@@ -306,7 +290,7 @@ export default function AttemptResultScreen() {
                 </View>
             )}
             ListFooterComponent={
-                <View style={{ marginTop: 12, marginBottom: 20 }}>
+                <View style={attemptResultStyles.transcriptFooter}>
                     <Pressable
                     onPress={() => setShowTranscript((prev) => !prev)}
                     style={({ pressed }) => ({
@@ -319,34 +303,25 @@ export default function AttemptResultScreen() {
                         marginBottom: showTranscript ? 12 : 0,
                     })}
                     >
-                    <Text style={{ fontWeight: "700", color: "#374151" }}>
+                    <Text style={attemptResultStyles.transcriptToggleText}>
                         {showTranscript ? "Hide Transcript ▲" : "View Transcript ▼"}
                     </Text>
                     </Pressable>
 
                     {showTranscript && (
-                    <View style={{ gap: 10 }}>
+                    <View style={attemptResultStyles.transcriptList}>
                         {messages.length === 0 ? (
-                        <Text style={{ color: "#6b7280" }}>No messages found.</Text>
+                        <Text style={attemptResultStyles.transcriptEmptyText}>No messages found.</Text>
                         ) : (
                         messages.map((msg, index) => {
                             const isUser = msg.role === "user";
                             return (
                             <View
                                 key={index}
-                                style={{
-                                alignSelf: isUser ? "flex-end" : "flex-start",
-                                maxWidth: "85%",
-                                borderWidth: 1,
-                                borderColor: "#d1d5db",
-                                borderRadius: 12,
-                                paddingVertical: 10,
-                                paddingHorizontal: 12,
-                                backgroundColor: "#fbfcfd",
-                                }}
+                                style={[attemptResultStyles.messageBubble, { alignSelf: isUser ? "flex-end" : "flex-start" }]}
                             >
-                                <Text style={{ fontWeight: "700", marginBottom: 4 }}>
-                                {isUser ? "You" : "Patient"}
+                                <Text style={attemptResultStyles.messageSender}>
+                                    {isUser ? "You" : "Patient"}
                                 </Text>
                                 <Text>{msg.content}</Text>
                             </View>
