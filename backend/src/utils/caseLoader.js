@@ -18,7 +18,8 @@ async function listCases() {
       const caseData = await readJson(filePath);
       return {
         caseId: caseData.case_id || fileName.replace(".json", ""),
-        title: caseData.display_title || fileName.replace(".json", "")
+        title: caseData.display_title || fileName.replace(".json", ""),
+        level: Number(caseData.level) || 1
       };
     })
   );

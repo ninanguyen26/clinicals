@@ -117,6 +117,14 @@ export const casesStyles = StyleSheet.create({
   caseCardPressable: {
     padding: 14,
   },
+  caseCardLevelLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6d28d9",
+    letterSpacing: 0.3,
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
   caseCardTitle: {
     fontSize: 16,
     fontWeight: "700",

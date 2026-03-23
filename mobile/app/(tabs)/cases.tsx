@@ -15,7 +15,7 @@ export default function HomeScreen() {
   const [loadingCases, setLoadingCases] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cases, setCases] = useState<{ caseId: string; title: string }[]>([]);
+  const [cases, setCases] = useState<{ caseId: string; title: string; level?: number }[]>([]);
   const [points, setPoints] = useState(0);
   const [level, setLevel] = useState(1);
 
@@ -167,8 +167,8 @@ export default function HomeScreen() {
                   backgroundColor: pressed ? "#f9fafb" : "#ffffff",
                 })}
               >
-                <Text style={casesStyles.caseCardTitle}>{item.title || item.caseId}</Text>
-                <Text style={casesStyles.caseCardSubText}>Case ID: {item.caseId}</Text>
+                <Text style={casesStyles.caseCardLevelLabel}>Level {Math.max(1, Number(item.level ?? 1) || 1)}</Text>
+                <Text style={casesStyles.caseCardTitle}>{item.title || `Level ${Math.max(1, Number(item.level ?? 1) || 1)}.1`}</Text>
               </Pressable>
               <View style={casesStyles.attemptsRow}>
                 <Pressable

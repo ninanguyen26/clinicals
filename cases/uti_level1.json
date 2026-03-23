@@ -1,7 +1,7 @@
 {
   "case_id": "uti_level1",
   "level": 1,
-  "display_title": "Telehealth OSCE UTI (Beginner)",
+  "display_title": "Level 1.1",
   "setting": "telehealth_outpatient",
   "time_allowed_minutes": 15,
   "frame": "Outpatient telehealth OSCE",
