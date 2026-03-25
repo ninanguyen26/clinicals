@@ -109,13 +109,26 @@ export const casesStyles = StyleSheet.create({
   // Case card
   caseCard: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: "#ddd6fe",
     borderRadius: 12,
     backgroundColor: "#ffffff",
     overflow: "hidden",
   },
   caseCardPressable: {
     padding: 14,
+    backgroundColor: "#faf5ff",
+  },
+  caseCardPressablePressed: {
+    backgroundColor: "#f3e8ff",
+  },
+  caseCardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  caseCardHeaderText: {
+    flex: 1,
   },
   caseCardLevelLabel: {
     fontSize: 12,
@@ -128,14 +141,29 @@ export const casesStyles = StyleSheet.create({
   caseCardTitle: {
     fontSize: 16,
     fontWeight: "700",
+    color: "#111827",
   },
-  caseCardSubText: {
+  caseCardHintText: {
     color: "#6b7280",
     marginTop: 4,
+    fontSize: 13,
+  },
+  caseCardLaunchPill: {
+    borderRadius: 999,
+    backgroundColor: "#6d28d9",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 74,
+    alignItems: "center",
+  },
+  caseCardLaunchPillText: {
+    color: "#ffffff",
+    fontWeight: "700",
   },
   attemptsRow: {
     borderTopWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#ede9fe",
+    backgroundColor: "#fcfcff",
   },
   attemptsButton: {
     paddingHorizontal: 14,
@@ -143,7 +171,8 @@ export const casesStyles = StyleSheet.create({
   },
   attemptsButtonText: {
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#6b7280",
+    fontSize: 14,
   },
 
   // Empty state

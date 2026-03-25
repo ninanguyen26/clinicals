@@ -162,13 +162,25 @@ export default function HomeScreen() {
             <View style={casesStyles.caseCard}>
               <Pressable
                 onPress={() => router.push({ pathname: "/(tabs)/level1", params: { caseId: item.caseId } })}
-                style={({ pressed }) => ({
-                  padding: 14,
-                  backgroundColor: pressed ? "#f9fafb" : "#ffffff",
-                })}
+                style={({ pressed }) => [
+                  casesStyles.caseCardPressable,
+                  pressed && casesStyles.caseCardPressablePressed,
+                ]}
               >
-                <Text style={casesStyles.caseCardLevelLabel}>Level {Math.max(1, Number(item.level ?? 1) || 1)}</Text>
-                <Text style={casesStyles.caseCardTitle}>{item.title || `Level ${Math.max(1, Number(item.level ?? 1) || 1)}.1`}</Text>
+                <View style={casesStyles.caseCardHeaderRow}>
+                  <View style={casesStyles.caseCardHeaderText}>
+                    <Text style={casesStyles.caseCardLevelLabel}>
+                      Level {Math.max(1, Number(item.level ?? 1) || 1)}
+                    </Text>
+                    <Text style={casesStyles.caseCardTitle}>
+                      {item.title || `Level ${Math.max(1, Number(item.level ?? 1) || 1)}.1`}
+                    </Text>
+                    <Text style={casesStyles.caseCardHintText}>Tap here to start the patient interview.</Text>
+                  </View>
+                  <View style={casesStyles.caseCardLaunchPill}>
+                    <Text style={casesStyles.caseCardLaunchPillText}>Start</Text>
+                  </View>
+                </View>
               </Pressable>
               <View style={casesStyles.attemptsRow}>
                 <Pressable
