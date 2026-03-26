@@ -263,6 +263,7 @@ export default function Level1Screen() {
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [savedConversationId, setSavedConversationId] = useState<string | null>(null);
+  const [resumeCheckComplete, setResumeCheckComplete] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -513,6 +514,9 @@ export default function Level1Screen() {
     setHpiText("");
     setSubmissionResult(null);
     setSubmitError(null);
+    setSavedConversationId(null);
+    setShowResumePrompt(false);
+    setResumeCheckComplete(false);
   }, [caseId]);
 
   // for resume chat button
@@ -523,13 +527,30 @@ export default function Level1Screen() {
 
   // on mount, check if a previous conversation exists for this case
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
-      const saved = await SecureStore.getItemAsync(`conv_${caseId}`);
-      if (saved) {
-        setSavedConversationId(saved);
-        setShowResumePrompt(true);
+      try {
+        const saved = await SecureStore.getItemAsync(`conv_${caseId}`);
+        if (cancelled) return;
+
+        if (saved) {
+          setSavedConversationId(saved);
+          setShowResumePrompt(true);
+        } else {
+          setSavedConversationId(null);
+          setShowResumePrompt(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setResumeCheckComplete(true);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [caseId]);
 
   useEffect(() => {
@@ -601,8 +622,11 @@ export default function Level1Screen() {
   }, [safelySetTalkingVideoState, stopSpeechPlayback]);
 
   useEffect(() => {
+    if (!resumeCheckComplete) return;
+    if (showResumePrompt) return;
+    if (savedConversationId && !conversationId) return;
     ensureConversation();
-  }, [ensureConversation]);
+  }, [conversationId, ensureConversation, resumeCheckComplete, savedConversationId, showResumePrompt]);
 
   useEffect(() => {
     if (!conversationId || pendingMessages.length === 0) return;
@@ -798,11 +822,13 @@ export default function Level1Screen() {
       setShowResumePrompt(false);
     } catch (e: any) {
       console.warn("Failed to resume conversation:", e.message);
+      await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
+      setSavedConversationId(null);
       setShowResumePrompt(false);
     } finally {
       setResumeLoading(false);
     }
-  }, [savedConversationId, userHeaders]);
+  }, [caseId, savedConversationId, userHeaders]);
 
   const startFresh = useCallback(async () => {
     await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
