@@ -1,6 +1,8 @@
 import * as SecureStore from "expo-secure-store";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+const REQUEST_TIMEOUT_MS = 10000;
+const TOKEN_READ_TIMEOUT_MS = 1500;
 
 if (!BASE_URL) {
   throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
@@ -8,18 +10,52 @@ if (!BASE_URL) {
 
 const API_PREFIX = "/api";
 
-async function request(path, { method = "GET", body, headers } = {}) {
-  const token = await SecureStore.getItemAsync("token");
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
 
-  const res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(headers || {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+async function getStoredToken() {
+  try {
+    return await withTimeout(
+      SecureStore.getItemAsync("token"),
+      TOKEN_READ_TIMEOUT_MS,
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function request(path, { method = "GET", body, headers } = {}) {
+  const token = await getStoredToken();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(headers || {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error(
+        `Request timed out. Verify EXPO_PUBLIC_API_BASE_URL (${BASE_URL}) and that the backend is reachable from this device.`
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const text = await res.text();
   let data;
