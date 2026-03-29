@@ -6,9 +6,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import "react-native-reanimated";
 
 import { ClerkLoaded, ClerkLoading, ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-expo";
-import * as SecureStore from "expo-secure-store";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getItemAsync, setItemAsync } from "../src/utils/storage";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -16,16 +16,10 @@ export const unstable_settings = {
 
 const tokenCache = {
   async getToken(key: string) {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch {
-      return null;
-    }
+    return getItemAsync(key);
   },
   async saveToken(key: string, value: string) {
-    try {
-      return await SecureStore.setItemAsync(key, value);
-    } catch {}
+    await setItemAsync(key, value);
   },
 };
 

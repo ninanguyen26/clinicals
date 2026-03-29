@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import { deleteItemAsync, getItemAsync, setItemAsync } from "../utils/storage";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const REQUEST_TIMEOUT_MS = 10000;
@@ -20,7 +20,7 @@ function withTimeout(promise, ms, fallback) {
 async function getStoredToken() {
   try {
     return await withTimeout(
-      SecureStore.getItemAsync("token"),
+      getItemAsync("token"),
       TOKEN_READ_TIMEOUT_MS,
       null
     );
@@ -89,12 +89,12 @@ export const api = {
       body: { email, password },
     });
     // Expecting { token: "..." } from backend
-    if (data?.token) await SecureStore.setItemAsync("token", data.token);
+    if (data?.token) await setItemAsync("token", data.token);
     return data;
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync("token");
+    await deleteItemAsync("token");
   },
 
   // to view previous attempts for a case

@@ -3,16 +3,16 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useUser } from "@clerk/clerk-expo";
-import * as SecureStore from "expo-secure-store";
 import { caseStyles } from "../assets/styles/case.styles";
 import { attemptResultStyles } from "../assets/styles/attempt-result.styles";
+import { getItemAsync } from "../src/utils/storage";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
 
 async function request(path: string, headers: Record<string, string> = {}) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
-  const token = await SecureStore.getItemAsync("token");
+  const token = await getItemAsync("token");
   const res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
     headers: {
       "Content-Type": "application/json",
