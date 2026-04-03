@@ -13,11 +13,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useUser } from "@clerk/clerk-expo";
+import * as SecureStore from "expo-secure-store";
 import { Audio } from "expo-av";
 import { VideoView, useVideoPlayer } from "expo-video";
 import * as FileSystem from "expo-file-system/legacy";
 import { caseStyles } from "../../assets/styles/case.styles";
-import { deleteItemAsync, getItemAsync, setItemAsync } from "../../src/utils/storage";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
@@ -60,7 +60,7 @@ async function request(
 ) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
 
-  const token = await getItemAsync("token");
+  const token = await SecureStore.getItemAsync("token");
   const method = String(opts.method || "GET").toUpperCase();
   const timeoutMs = getRequestTimeoutMs(path, method);
 
@@ -126,6 +126,7 @@ type CaseData = {
     first_name?: string;
     last_name?: string;
   };
+
 };
 
 type Msg = {
@@ -526,7 +527,7 @@ export default function Level1Screen() {
   // for resume chat button
   useEffect(() => {
     if (!conversationId) return;
-    setItemAsync(`conv_${caseId}`, conversationId).catch(() => {});
+    SecureStore.setItemAsync(`conv_${caseId}`, conversationId).catch(() => {});
   }, [conversationId, caseId]);
 
   // on mount, check if a previous conversation exists for this case
@@ -535,7 +536,7 @@ export default function Level1Screen() {
 
     (async () => {
       try {
-        const saved = await getItemAsync(`conv_${caseId}`);
+        const saved = await SecureStore.getItemAsync(`conv_${caseId}`);
         if (cancelled) return;
 
         if (saved) {
@@ -561,7 +562,7 @@ export default function Level1Screen() {
     let cancelled = false;
 
     (async () => {
-      const savedPref = await getItemAsync(VOICE_PREF_KEY);
+      const savedPref = await SecureStore.getItemAsync(VOICE_PREF_KEY);
       if (cancelled || savedPref == null) return;
       setVoiceEnabled(savedPref !== "0");
     })();
@@ -572,7 +573,7 @@ export default function Level1Screen() {
   }, []);
 
   useEffect(() => {
-    setItemAsync(VOICE_PREF_KEY, voiceEnabled ? "1" : "0").catch(() => {});
+    SecureStore.setItemAsync(VOICE_PREF_KEY, voiceEnabled ? "1" : "0").catch(() => {});
   }, [voiceEnabled]);
 
   useEffect(() => {
@@ -772,7 +773,7 @@ export default function Level1Screen() {
       });
 
       setSubmissionResult(normalizeSubmissionPayload(data));
-      await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+      await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
       setStage("results");
     } catch (e: any) {
       const message = String(e?.message || "Failed to submit case.");
@@ -826,7 +827,7 @@ export default function Level1Screen() {
       setShowResumePrompt(false);
     } catch (e: any) {
       console.warn("Failed to resume conversation:", e.message);
-      await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+      await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
       setSavedConversationId(null);
       setShowResumePrompt(false);
     } finally {
@@ -835,14 +836,14 @@ export default function Level1Screen() {
   }, [caseId, savedConversationId, userHeaders]);
 
   const startFresh = useCallback(async () => {
-    await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+    await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
     setSavedConversationId(null);
     setShowResumePrompt(false);
   }, [caseId]);
 
   const retryCase = useCallback(async () => {
     await stopSpeechPlayback();
-    await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+    await SecureStore.deleteItemAsync(`conv_${caseId}`).catch(() => {});
 
     setSavedConversationId(null);
     setShowResumePrompt(false);
