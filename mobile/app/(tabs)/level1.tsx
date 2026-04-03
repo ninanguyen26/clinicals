@@ -122,6 +122,10 @@ type CaseData = {
     student_prompt_variants?: string[];
     patient_chief_complaint_reply?: string;
   };
+  patient_profile?: {
+    first_name?: string;
+    last_name?: string;
+  };
 };
 
 type Msg = {
@@ -938,9 +942,9 @@ export default function Level1Screen() {
             Level {caseData?.level ?? "?"} 
           </Text>
 
-          {!!caseData?.setting && (
+          {!!caseData?.patient_profile?.first_name && (
             <Text style={caseStyles.subText}>
-              Setting: {caseData.setting}
+              Patient's Name: {caseData.patient_profile.first_name} {caseData.patient_profile.last_name}
             </Text>
           )}
 
