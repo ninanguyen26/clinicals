@@ -7,6 +7,13 @@ import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { casesStyles } from "../../assets/styles/cases.styles";
 
+function formatSubmittedAt(value?: string) {
+  if (!value) return "No attempts yet";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Recent";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export default function HomeScreen() {
   const { signOut } = useClerk();
   const { user } = useUser();
@@ -16,6 +23,21 @@ export default function HomeScreen() {
   const [loadingProgress, setLoadingProgress] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cases, setCases] = useState<{ caseId: string; title: string; level?: number }[]>([]);
+  const [bestCases, setBestCases] = useState<
+    {
+      caseId: string;
+      title: string;
+      level: number;
+      score: number;
+      passingScore: number;
+      passed: boolean;
+      earnedPoints: number;
+      availablePoints: number;
+      casePointsAwarded: number;
+      submittedAt: string;
+      latestSubmittedAt?: string;
+    }[]
+  >([]);
   const [points, setPoints] = useState(0);
   const [level, setLevel] = useState(1);
 
@@ -28,6 +50,13 @@ export default function HomeScreen() {
     if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
     return headers;
   }, [user]);
+
+  const progressByCaseId = useMemo(
+    () => new Map(bestCases.map((entry) => [entry.caseId, entry])),
+    [bestCases]
+  );
+
+  const completedCaseCount = bestCases.filter((entry) => entry.passed).length;
 
   const displayName = useMemo(() => {
     // username, fallback to email, then "there"
@@ -68,10 +97,12 @@ export default function HomeScreen() {
       const data = await api.getProgress(userHeaders);
       setPoints(Number(data?.points ?? 0) || 0);
       setLevel(Math.max(1, Number(data?.level ?? 1) || 1));
+      setBestCases(Array.isArray(data?.best_cases) ? data.best_cases : []);
     } catch (err) {
       console.warn("Failed to load user progress:", err);
       setPoints(0);
       setLevel(1);
+      setBestCases([]);
     } finally {
       setLoadingProgress(false);
     }
@@ -128,6 +159,11 @@ export default function HomeScreen() {
                 {points}
               </Text>
               <Text style={casesStyles.pointsSubText}>Current level: {level}</Text>
+              <Text style={casesStyles.pointsProgressText}>
+                {completedCaseCount > 0
+                  ? `${completedCaseCount} case${completedCaseCount === 1 ? "" : "s"} completed`
+                  : "No completed cases yet"}
+              </Text>
               <Text style={casesStyles.pointsRetryNote}>
                 Highest case score is kept when you retry.
               </Text>
@@ -158,43 +194,110 @@ export default function HomeScreen() {
           data={cases}
           keyExtractor={(item) => item.caseId}
           contentContainerStyle={{ padding: 16, gap: 12 }}
-          renderItem={({ item }) => (
-            <View style={casesStyles.caseCard}>
-              <Pressable
-                onPress={() => router.push({ pathname: "/(tabs)/level1", params: { caseId: item.caseId } })}
-                style={({ pressed }) => [
-                  casesStyles.caseCardPressable,
-                  pressed && casesStyles.caseCardPressablePressed,
-                ]}
-              >
-                <View style={casesStyles.caseCardHeaderRow}>
-                  <View style={casesStyles.caseCardHeaderText}>
-                    <Text style={casesStyles.caseCardLevelLabel}>
-                      Level {Math.max(1, Number(item.level ?? 1) || 1)}
-                    </Text>
-                    <Text style={casesStyles.caseCardTitle}>
-                      {item.title || `Level ${Math.max(1, Number(item.level ?? 1) || 1)}.1`}
-                    </Text>
-                    <Text style={casesStyles.caseCardHintText}>Tap here to start the patient interview.</Text>
-                  </View>
-                  <View style={casesStyles.caseCardLaunchPill}>
-                    <Text style={casesStyles.caseCardLaunchPillText}>Start</Text>
-                  </View>
-                </View>
-              </Pressable>
-              <View style={casesStyles.attemptsRow}>
+          renderItem={({ item }) => {
+            const caseProgress = progressByCaseId.get(item.caseId);
+            const hasAttempt = Boolean(caseProgress);
+            const hasPassed = Boolean(caseProgress?.passed);
+
+            return (
+              <View style={casesStyles.caseCard}>
                 <Pressable
-                  onPress={() => router.push({ pathname: "/attempts", params: { caseId: item.caseId } })}
-                  style={({ pressed }) => (
-                    [casesStyles.attemptsButton,
-                    {backgroundColor: pressed ? "#f3f4f6" : "#f9fafb"}]
-                  )}
+                  onPress={() => router.push({ pathname: "/(tabs)/level1", params: { caseId: item.caseId } })}
+                  style={({ pressed }) => [
+                    casesStyles.caseCardPressable,
+                    pressed && casesStyles.caseCardPressablePressed,
+                  ]}
                 >
-                  <Text style={casesStyles.attemptsButtonText}>Previous Attempts →</Text>
+                  <View style={casesStyles.caseCardHeaderRow}>
+                    <View style={casesStyles.caseCardHeaderText}>
+                      <View style={casesStyles.caseCardHeaderTopRow}>
+                        <Text style={casesStyles.caseCardLevelLabel}>
+                          Level {Math.max(1, Number(item.level ?? 1) || 1)}
+                        </Text>
+                        <View
+                          style={[
+                            casesStyles.caseStatusBadge,
+                            hasPassed
+                              ? casesStyles.caseStatusBadgeComplete
+                              : hasAttempt
+                              ? casesStyles.caseStatusBadgeProgress
+                              : casesStyles.caseStatusBadgeReady,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              casesStyles.caseStatusBadgeText,
+                              hasPassed
+                                ? casesStyles.caseStatusBadgeTextComplete
+                                : hasAttempt
+                                ? casesStyles.caseStatusBadgeTextProgress
+                                : casesStyles.caseStatusBadgeTextReady,
+                            ]}
+                          >
+                            {hasPassed ? "Completed" : hasAttempt ? "In progress" : "Ready to begin"}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={casesStyles.caseCardTitle}>
+                        {item.title || `Level ${Math.max(1, Number(item.level ?? 1) || 1)}.1`}
+                      </Text>
+                      <Text style={casesStyles.caseCardHintText}>Tap here to start the patient interview.</Text>
+                    </View>
+                    <View style={casesStyles.caseCardLaunchPill}>
+                      <Text style={casesStyles.caseCardLaunchPillText}>Start</Text>
+                    </View>
+                  </View>
+
+                  <View style={casesStyles.caseMetaRow}>
+                    {hasAttempt ? (
+                      <>
+                        <View style={casesStyles.caseMetaChip}>
+                          <Text style={casesStyles.caseMetaChipLabel}>Best score</Text>
+                          <Text style={casesStyles.caseMetaChipValue}>{caseProgress.score}%</Text>
+                        </View>
+                        <View style={casesStyles.caseMetaChip}>
+                          <Text style={casesStyles.caseMetaChipLabel}>Best points</Text>
+                          <Text style={casesStyles.caseMetaChipValue}>{caseProgress.casePointsAwarded}</Text>
+                        </View>
+                        <View style={casesStyles.caseMetaChip}>
+                          <Text style={casesStyles.caseMetaChipLabel}>Last attempt</Text>
+                          <Text style={casesStyles.caseMetaChipValue}>
+                            {formatSubmittedAt(caseProgress.latestSubmittedAt || caseProgress.submittedAt)}
+                          </Text>
+                        </View>
+                      </>
+                    ) : (
+                      <>
+                        <View style={casesStyles.caseMetaChip}>
+                          <Text style={casesStyles.caseMetaChipLabel}>Format</Text>
+                          <Text style={casesStyles.caseMetaChipValue}>Telehealth</Text>
+                        </View>
+                        <View style={casesStyles.caseMetaChip}>
+                          <Text style={casesStyles.caseMetaChipLabel}>Focus</Text>
+                          <Text style={casesStyles.caseMetaChipValue}>History-taking</Text>
+                        </View>
+                        <View style={casesStyles.caseMetaChip}>
+                          <Text style={casesStyles.caseMetaChipLabel}>Pace</Text>
+                          <Text style={casesStyles.caseMetaChipValue}>10-15 min</Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
                 </Pressable>
+                <View style={casesStyles.attemptsRow}>
+                  <Pressable
+                    onPress={() => router.push({ pathname: "/attempts", params: { caseId: item.caseId } })}
+                    style={({ pressed }) => [
+                      casesStyles.attemptsButton,
+                      { backgroundColor: pressed ? "#f3f4f6" : "#f9fafb" },
+                    ]}
+                  >
+                    <Text style={casesStyles.attemptsButtonText}>Previous Attempts →</Text>
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <View style={{ paddingTop: 24 }}>
               <Text style={casesStyles.emptyText}>No cases found.</Text>

@@ -14,6 +14,8 @@ function makeConversation({
   score = 0,
   earnedPoints,
   availablePoints = 46,
+  passingScore = 84,
+  passed,
   submittedAt = "2026-03-09T12:00:00.000Z",
 }) {
   return {
@@ -28,6 +30,8 @@ function makeConversation({
       details: {
         earned_points: earnedPoints,
         available_points: availablePoints,
+        passing_score: passingScore,
+        ...(typeof passed === "boolean" ? { passed } : {}),
       },
     },
   };
@@ -75,6 +79,48 @@ test("summarizeUserProgressFromConversations keeps only the highest scoring retr
   assert.equal(summary.bestCases[0].caseId, "uti_level1");
   assert.equal(summary.bestCases[0].casePointsAwarded, 43);
   assert.equal(summary.bestCases[0].score, 93);
+});
+
+test("summarizeUserProgressFromConversations keeps latest attempt date separate from best result date", () => {
+  const summary = summarizeUserProgressFromConversations([
+    makeConversation({
+      caseId: "uti_level1",
+      title: "UTI Level 1",
+      level: 1,
+      score: 93,
+      earnedPoints: 43,
+      submittedAt: "2026-03-09T09:00:00.000Z",
+    }),
+    makeConversation({
+      caseId: "uti_level1",
+      title: "UTI Level 1",
+      level: 1,
+      score: 70,
+      earnedPoints: 32,
+      submittedAt: "2026-03-09T11:00:00.000Z",
+    }),
+  ]);
+
+  assert.equal(summary.bestCases[0].score, 93);
+  assert.equal(summary.bestCases[0].submittedAt, "2026-03-09T09:00:00.000Z");
+  assert.equal(summary.bestCases[0].latestSubmittedAt, "2026-03-09T11:00:00.000Z");
+});
+
+test("summarizeUserProgressFromConversations marks a case as completed only when the best attempt passes", () => {
+  const summary = summarizeUserProgressFromConversations([
+    makeConversation({
+      caseId: "uti_level1",
+      title: "UTI Level 1",
+      level: 1,
+      score: 70,
+      earnedPoints: 32,
+      passingScore: 84,
+      submittedAt: "2026-03-09T09:00:00.000Z",
+    }),
+  ]);
+
+  assert.equal(summary.bestCases[0].passed, false);
+  assert.equal(summary.bestCases[0].passingScore, 84);
 });
 
 test("summarizeUserProgressFromConversations sums best results across multiple cases and derives user level", () => {

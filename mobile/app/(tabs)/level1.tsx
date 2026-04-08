@@ -112,6 +112,10 @@ type CaseData = {
   level: number;
   display_title: string;
   setting?: string;
+  patient_profile?: {
+    first_name?: string;
+    last_name?: string;
+  };
   presenting_info?: {
     chief_complaint?: string;
     opening_statement?: string;
@@ -184,6 +188,12 @@ function statusLabel(status: string) {
   if (status === "partially_met") return "Partially met";
   if (status === "omitted") return "Omitted";
   return "Missed";
+}
+
+function stageLabel(stage: "chat" | "hpi" | "results") {
+  if (stage === "chat") return "Interview";
+  if (stage === "hpi") return "Final HPI";
+  return "Results";
 }
 
 function normalizeSubmissionPayload(payload: any): SubmissionResult {
@@ -939,13 +949,14 @@ export default function Level1Screen() {
             </View>
           </View>
 
+          <Text style={caseStyles.headerEyebrow}>Telehealth Visit</Text>
           <Text style={caseStyles.title}>
-            Level {caseData?.level ?? "?"} 
+            Level {caseData?.level ?? "?"} Interview
           </Text>
 
           {!!caseData?.patient_profile?.first_name && (
-            <Text style={caseStyles.subText}>
-              Patient's Name: {caseData.patient_profile.first_name} {caseData.patient_profile.last_name}
+            <Text style={caseStyles.patientNameText}>
+              Patient: {caseData.patient_profile.first_name} {caseData.patient_profile.last_name}
             </Text>
           )}
 
@@ -954,6 +965,49 @@ export default function Level1Screen() {
               Chief complaint: {caseData.presenting_info.chief_complaint}
             </Text>
           )}
+
+          <View style={caseStyles.statusChipRow}>
+            <View style={[caseStyles.statusChip, caseStyles.statusChipPrimary]}>
+              <Text style={[caseStyles.statusChipText, caseStyles.statusChipPrimaryText]}>
+                Stage: {stageLabel(stage)}
+              </Text>
+            </View>
+            <View
+              style={[
+                caseStyles.statusChip,
+                isRecording || transcribing || isSpeaking
+                  ? caseStyles.statusChipAttention
+                  : conversationId
+                  ? caseStyles.statusChipSuccess
+                  : voiceEnabled
+                  ? caseStyles.statusChipMuted
+                  : caseStyles.statusChipMuted,
+              ]}
+            >
+              <Text
+                style={[
+                  caseStyles.statusChipText,
+                  isRecording || transcribing || isSpeaking
+                    ? caseStyles.statusChipAttentionText
+                    : conversationId
+                    ? caseStyles.statusChipSuccessText
+                    : caseStyles.statusChipMutedText,
+                ]}
+              >
+                {isRecording
+                  ? "Recording..."
+                  : transcribing
+                  ? "Transcribing..."
+                  : isSpeaking
+                  ? "Patient speaking..."
+                  : conversationId
+                  ? "Draft saved"
+                  : voiceEnabled
+                  ? "Voice ready"
+                  : "Preparing chart"}
+              </Text>
+            </View>
+          </View>
 
           {stage === "chat" && (
             <View style={caseStyles.voiceControlsRow}>
@@ -992,71 +1046,111 @@ export default function Level1Screen() {
             contentContainerStyle={caseStyles.resultsFlatListContent}
             ListHeaderComponent={
               <View style={caseStyles.resultsHeaderContainer}>
-                <View style={caseStyles.resultsCard}>
-
-                  {/* Score */}
+                <View style={caseStyles.resultsHeroCard}>
+                  <Text style={caseStyles.resultsEyebrow}>Performance Summary</Text>
                   <View style={caseStyles.resultsScoreRow}>
-                    <Text style={caseStyles.resultsScoreText}>
-                      {submissionResult.score}%
-                    </Text>
-                    <Text style={[caseStyles.resultsPassText, { color: submissionResult.passed ? "#166534" : "#b91c1c" }]}>
-                      {submissionResult.passed ? "Passed ✓" : "Not passed"} · threshold {submissionResult.passing_score}%
-                    </Text>
+                    <View style={caseStyles.resultsScoreBlock}>
+                      <Text style={caseStyles.resultsScoreText}>
+                        {submissionResult.score}%
+                      </Text>
+                      <Text style={caseStyles.resultsThresholdText}>
+                        Passing threshold: {submissionResult.passing_score}%
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        caseStyles.resultsOutcomeBadge,
+                        submissionResult.passed
+                          ? caseStyles.resultsOutcomeBadgePassed
+                          : caseStyles.resultsOutcomeBadgeFailed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          caseStyles.resultsOutcomeBadgeText,
+                          submissionResult.passed
+                            ? caseStyles.resultsOutcomeBadgeTextPassed
+                            : caseStyles.resultsOutcomeBadgeTextFailed,
+                        ]}
+                      >
+                        {submissionResult.passed ? "Passed" : "Needs review"}
+                      </Text>
+                    </View>
                   </View>
+                  <Text style={caseStyles.resultsSummaryText}>
+                    {submissionResult.feedback ||
+                      "Review the focus areas below before your next attempt."}
+                  </Text>
 
-                  {/* Points */}
-                  {submissionResult.earned_points != null && (
-                    <Text style={caseStyles.resultsPointsText}>
-                      {submissionResult.earned_points} / {submissionResult.available_points} available points
-                    </Text>
-                  )}
+                  <View style={caseStyles.resultsStatsGrid}>
+                    <View style={caseStyles.resultsStatTile}>
+                      <Text style={caseStyles.resultsStatLabel}>Earned points</Text>
+                      <Text style={caseStyles.resultsStatValue}>
+                        {submissionResult.earned_points ?? 0}/{submissionResult.available_points ?? 0}
+                      </Text>
+                    </View>
+                    <View style={caseStyles.resultsStatTile}>
+                      <Text style={caseStyles.resultsStatLabel}>Case points</Text>
+                      <Text style={caseStyles.resultsStatValue}>
+                        {submissionResult.case_points_awarded ?? 0}
+                      </Text>
+                    </View>
+                    <View style={caseStyles.resultsStatTile}>
+                      <Text style={caseStyles.resultsStatLabel}>Total points</Text>
+                      <Text style={caseStyles.resultsStatValue}>
+                        {submissionResult.user_total_points ?? 0}
+                      </Text>
+                    </View>
+                    <View style={caseStyles.resultsStatTile}>
+                      <Text style={caseStyles.resultsStatLabel}>Current level</Text>
+                      <Text style={caseStyles.resultsStatValue}>
+                        {submissionResult.user_level ?? caseData?.level ?? 1}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
 
-                  {submissionResult.case_points_awarded != null ? (
-                    <Text style={caseStyles.resultsPointsText}>
-                      Case points earned: {submissionResult.case_points_awarded}
-                    </Text>
-                  ) : null}
+                <View style={caseStyles.resultsCard}>
+                  <Text style={caseStyles.resultsSectionTitle}>Priority Follow-Up</Text>
 
-                  {submissionResult.user_total_points != null ? (
-                    <Text style={caseStyles.resultsPointsText}>
-                      Total user points: {submissionResult.user_total_points}
-                      {submissionResult.user_level != null ? ` · level ${submissionResult.user_level}` : ""}
-                    </Text>
-                  ) : null}
-
-                  {/* Critical fails */}
                   {submissionResult.critical_fails_triggered.length > 0 && (
                     <View style={caseStyles.resultsCriticalBox}>
                       <Text style={caseStyles.resultsCriticalTitle}>Critical Fails</Text>
                       {submissionResult.critical_fails_triggered.map((item) => (
-                        <Text key={item} style={caseStyles.resultsCriticalItem}>· {item}</Text>
+                        <Text key={item} style={caseStyles.resultsCriticalItem}>• {item}</Text>
                       ))}
                     </View>
                   )}
 
-                  {/* Missed red flags */}
                   {submissionResult.missed_red_flags.length > 0 && (
                     <View style={caseStyles.resultsRedFlagBox}>
                       <Text style={caseStyles.resultsRedFlagTitle}>Missed Red Flags</Text>
                       {submissionResult.missed_red_flags.map((item) => (
-                        <Text key={item} style={caseStyles.resultsRedFlagItem}>· {item}</Text>
+                        <Text key={item} style={caseStyles.resultsRedFlagItem}>• {item}</Text>
                       ))}
                     </View>
                   )}
 
-                  {/* Missed history */}
                   {submissionResult.missed_required_questions.length > 0 && (
                     <View style={caseStyles.resultsMissedBox}>
                       <Text style={caseStyles.resultsMissedTitle}>Missed History Items</Text>
                       {submissionResult.missed_required_questions.map((item) => (
-                        <Text key={item} style={caseStyles.resultsMissedItem}>· {item}</Text>
+                        <Text key={item} style={caseStyles.resultsMissedItem}>• {item}</Text>
                       ))}
                     </View>
                   )}
+
+                  {submissionResult.critical_fails_triggered.length === 0 &&
+                    submissionResult.missed_red_flags.length === 0 &&
+                    submissionResult.missed_required_questions.length === 0 && (
+                      <Text style={caseStyles.resultsPositiveNote}>
+                        No critical fails, missed red flags, or missed history items were recorded.
+                      </Text>
+                    )}
                 </View>
 
                 <View style={caseStyles.resultsCard}>
-                  <Text style={caseStyles.resultsSectionTitle}>Section Scores</Text>
+                  <Text style={caseStyles.resultsSectionTitle}>Section Breakdown</Text>
                   {submissionResult.section_scores.map((section) => (
                     <View key={section.section} style={caseStyles.resultsSectionRow}>
                       <Text style={caseStyles.resultsSectionLabel}>{section.label || section.section}</Text>
@@ -1067,7 +1161,7 @@ export default function Level1Screen() {
                   ))}
                 </View>
 
-                <Text style={caseStyles.resultsSectionTitle}>Criterion Breakdown</Text>
+                <Text style={caseStyles.resultsSectionTitle}>Rubric Breakdown</Text>
               </View>
             }
             ListFooterComponent={
@@ -1142,8 +1236,13 @@ export default function Level1Screen() {
             />
             {messages.length === 0 && (
               <View style={caseStyles.chatHintContainer}>
+                {!!caseData?.presenting_info?.chief_complaint && (
+                  <Text style={caseStyles.chatHintTitle}>
+                    Chief complaint: {caseData.presenting_info.chief_complaint}
+                  </Text>
+                )}
                 <Text style={caseStyles.chatHintText}>
-                  Start with your OSCE introduction (name + title), then ask what brings the patient in.
+                  Introduce yourself, confirm the patient identity, and ask what brings the patient in today.
                 </Text>
               </View>
             )}

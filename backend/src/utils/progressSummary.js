@@ -30,12 +30,28 @@ function getSubmissionAvailablePoints(submission) {
   return Math.max(0, toFiniteNumber(details.available_points, 0));
 }
 
+function getSubmissionPassingScore(submission) {
+  const details = getSubmissionDetails(submission);
+  return Math.max(0, toFiniteNumber(details.passing_score, 84));
+}
+
+function getSubmissionPassed(submission) {
+  const details = getSubmissionDetails(submission);
+  if (typeof details.passed === "boolean") {
+    return details.passed;
+  }
+
+  const score = Math.max(0, toFiniteNumber(submission?.score, 0));
+  return score >= getSubmissionPassingScore(submission);
+}
+
 function calculateCasePointsAwarded({ level, earnedPoints }) {
   return Math.max(0, toFiniteNumber(level, 1) * Math.max(0, toFiniteNumber(earnedPoints, 0)));
 }
 
 function summarizeUserProgressFromConversations(conversations = []) {
   const bestByCase = new Map();
+  const latestByCase = new Map();
 
   for (const conversation of conversations) {
     const submission = conversation?.submission;
@@ -47,17 +63,29 @@ function summarizeUserProgressFromConversations(conversations = []) {
     const availablePoints = getSubmissionAvailablePoints(submission);
     const casePointsAwarded = calculateCasePointsAwarded({ level, earnedPoints });
     const score = Math.max(0, toFiniteNumber(submission.score, 0));
+    const passingScore = getSubmissionPassingScore(submission);
+    const passed = getSubmissionPassed(submission);
     const submittedAt = submission.submittedAt ? new Date(submission.submittedAt) : new Date(0);
+    const submittedAtIso = submittedAt.toISOString();
+
+    const latestAttempt = latestByCase.get(patientCase.caseId);
+    if (!latestAttempt || submittedAt.getTime() > new Date(latestAttempt.submittedAt).getTime()) {
+      latestByCase.set(patientCase.caseId, {
+        submittedAt: submittedAtIso,
+      });
+    }
 
     const nextEntry = {
       caseId: patientCase.caseId,
       title: patientCase.title,
       level,
       score,
+      passingScore,
+      passed,
       earnedPoints,
       availablePoints,
       casePointsAwarded,
-      submittedAt: submittedAt.toISOString(),
+      submittedAt: submittedAtIso,
     };
 
     const currentBest = bestByCase.get(patientCase.caseId);
@@ -76,7 +104,12 @@ function summarizeUserProgressFromConversations(conversations = []) {
     }
   }
 
-  const bestCases = Array.from(bestByCase.values()).sort((a, b) => a.caseId.localeCompare(b.caseId));
+  const bestCases = Array.from(bestByCase.values())
+    .map((entry) => ({
+      ...entry,
+      latestSubmittedAt: latestByCase.get(entry.caseId)?.submittedAt ?? entry.submittedAt,
+    }))
+    .sort((a, b) => a.caseId.localeCompare(b.caseId));
   const totalPoints = bestCases.reduce((sum, entry) => sum + entry.casePointsAwarded, 0);
   const level = Math.max(1, Math.floor(totalPoints / 100) + 1);
 
@@ -91,5 +124,7 @@ module.exports = {
   calculateCasePointsAwarded,
   getSubmissionAvailablePoints,
   getSubmissionEarnedPoints,
+  getSubmissionPassed,
+  getSubmissionPassingScore,
   summarizeUserProgressFromConversations,
 };

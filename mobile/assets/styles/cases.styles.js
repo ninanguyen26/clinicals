@@ -72,6 +72,11 @@ export const casesStyles = StyleSheet.create({
     color: "#6b7280",
     marginTop: 2,
   },
+  pointsProgressText: {
+    color: "#4b5563",
+    marginTop: 4,
+    fontWeight: "600",
+  },
   pointsRetryNote: {
     color: "#6b7280",
     marginTop: 2,
@@ -123,20 +128,57 @@ export const casesStyles = StyleSheet.create({
   },
   caseCardHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
   },
   caseCardHeaderText: {
     flex: 1,
   },
+  caseCardHeaderTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 6,
+  },
   caseCardLevelLabel: {
     fontSize: 12,
     fontWeight: "700",
     color: "#6d28d9",
     letterSpacing: 0.3,
-    marginBottom: 6,
     textTransform: "uppercase",
+  },
+  caseStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+  },
+  caseStatusBadgeReady: {
+    backgroundColor: "#eff6ff",
+    borderColor: "#bfdbfe",
+  },
+  caseStatusBadgeComplete: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#bbf7d0",
+  },
+  caseStatusBadgeProgress: {
+    backgroundColor: "#fffbeb",
+    borderColor: "#fde68a",
+  },
+  caseStatusBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  caseStatusBadgeTextReady: {
+    color: "#1d4ed8",
+  },
+  caseStatusBadgeTextComplete: {
+    color: "#166534",
+  },
+  caseStatusBadgeTextProgress: {
+    color: "#92400e",
   },
   caseCardTitle: {
     fontSize: 16,
@@ -159,6 +201,33 @@ export const casesStyles = StyleSheet.create({
   caseCardLaunchPillText: {
     color: "#ffffff",
     fontWeight: "700",
+  },
+  caseMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  caseMetaChip: {
+    borderWidth: 1,
+    borderColor: "#e9d5ff",
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 94,
+  },
+  caseMetaChipLabel: {
+    fontSize: 11,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  caseMetaChipValue: {
+    color: "#111827",
+    fontWeight: "700",
+    fontSize: 13,
   },
   attemptsRow: {
     borderTopWidth: 1,

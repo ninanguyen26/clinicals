@@ -189,69 +189,108 @@ export default function AttemptResultScreen() {
             contentContainerStyle={caseStyles.resultsFlatListContent}
             ListHeaderComponent={
                 <View style={caseStyles.resultsHeaderContainer}>
-                <View style={caseStyles.resultsCard}>
-
-                    {/* Score */}
+                <View style={caseStyles.resultsHeroCard}>
+                    <Text style={caseStyles.resultsEyebrow}>Attempt Review</Text>
                     <View style={caseStyles.resultsScoreRow}>
-                    <Text style={caseStyles.resultsScoreText}>{result.score}%</Text>
-                    <Text style={[caseStyles.resultsPassText, { color: result.passed ? "#166534" : "#b91c1c" }]}>
-                        {result.passed ? "Passed ✓" : "Not passed"} · threshold {result.passing_score}%
-                    </Text>
+                    <View style={caseStyles.resultsScoreBlock}>
+                        <Text style={caseStyles.resultsScoreText}>{result.score}%</Text>
+                        <Text style={caseStyles.resultsThresholdText}>
+                        Passing threshold: {result.passing_score}%
+                        </Text>
                     </View>
-
-                    {/* Points */}
-                    {result.earned_points != null && (
-                    <Text style={caseStyles.resultsPointsText}>
-                        {result.earned_points} / {result.available_points} available points
+                    <View
+                        style={[
+                        caseStyles.resultsOutcomeBadge,
+                        result.passed
+                            ? caseStyles.resultsOutcomeBadgePassed
+                            : caseStyles.resultsOutcomeBadgeFailed,
+                        ]}
+                    >
+                        <Text
+                        style={[
+                            caseStyles.resultsOutcomeBadgeText,
+                            result.passed
+                            ? caseStyles.resultsOutcomeBadgeTextPassed
+                            : caseStyles.resultsOutcomeBadgeTextFailed,
+                        ]}
+                        >
+                        {result.passed ? "Passed" : "Needs review"}
+                        </Text>
+                    </View>
+                    </View>
+                    <Text style={caseStyles.resultsSummaryText}>
+                    {result.feedback || "Review the follow-up items below before your next attempt."}
                     </Text>
-                    )}
 
-                    {result.case_points_awarded != null && (
-                    <Text style={caseStyles.resultsPointsText}>
-                        Case points earned: {result.case_points_awarded}
-                    </Text>
-                    )}
+                    <View style={caseStyles.resultsStatsGrid}>
+                    <View style={caseStyles.resultsStatTile}>
+                        <Text style={caseStyles.resultsStatLabel}>Earned points</Text>
+                        <Text style={caseStyles.resultsStatValue}>
+                        {result.earned_points ?? 0}/{result.available_points ?? 0}
+                        </Text>
+                    </View>
+                    <View style={caseStyles.resultsStatTile}>
+                        <Text style={caseStyles.resultsStatLabel}>Case points</Text>
+                        <Text style={caseStyles.resultsStatValue}>
+                        {result.case_points_awarded ?? 0}
+                        </Text>
+                    </View>
+                    <View style={caseStyles.resultsStatTile}>
+                        <Text style={caseStyles.resultsStatLabel}>Total points</Text>
+                        <Text style={caseStyles.resultsStatValue}>
+                        {result.user_total_points ?? 0}
+                        </Text>
+                    </View>
+                    <View style={caseStyles.resultsStatTile}>
+                        <Text style={caseStyles.resultsStatLabel}>Current level</Text>
+                        <Text style={caseStyles.resultsStatValue}>
+                        {result.user_level ?? 1}
+                        </Text>
+                    </View>
+                    </View>
+                </View>
 
-                    {result.user_total_points != null && (
-                    <Text style={caseStyles.resultsPointsText}>
-                        Total user points: {result.user_total_points}
-                        {result.user_level != null ? ` · level ${result.user_level}` : ""}
-                    </Text>
-                    )}
+                <View style={caseStyles.resultsCard}>
+                    <Text style={caseStyles.resultsSectionTitle}>Priority Follow-Up</Text>
 
-                    {/* Critical fails */}
                     {result.critical_fails_triggered.length > 0 && (
                     <View style={caseStyles.resultsCriticalBox}>
                         <Text style={caseStyles.resultsCriticalTitle}>Critical Fails</Text>
                         {result.critical_fails_triggered.map((item) => (
-                        <Text key={item} style={caseStyles.resultsCriticalItem}>· {item}</Text>
+                        <Text key={item} style={caseStyles.resultsCriticalItem}>• {item}</Text>
                         ))}
                     </View>
                     )}
 
-                    {/* Missed red flags */}
                     {result.missed_red_flags.length > 0 && (
                     <View style={caseStyles.resultsRedFlagBox}>
                         <Text style={caseStyles.resultsRedFlagTitle}>Missed Red Flags</Text>
                         {result.missed_red_flags.map((item) => (
-                        <Text key={item} style={caseStyles.resultsRedFlagItem}>· {item}</Text>
+                        <Text key={item} style={caseStyles.resultsRedFlagItem}>• {item}</Text>
                         ))}
                     </View>
                     )}
 
-                    {/* Missed history */}
                     {result.missed_required_questions.length > 0 && (
                     <View style={caseStyles.resultsMissedBox}>
                         <Text style={caseStyles.resultsMissedTitle}>Missed History Items</Text>
                         {result.missed_required_questions.map((item) => (
-                        <Text key={item} style={caseStyles.resultsMissedItem}>· {item}</Text>
+                        <Text key={item} style={caseStyles.resultsMissedItem}>• {item}</Text>
                         ))}
                     </View>
+                    )}
+
+                    {result.critical_fails_triggered.length === 0 &&
+                    result.missed_red_flags.length === 0 &&
+                    result.missed_required_questions.length === 0 && (
+                        <Text style={caseStyles.resultsPositiveNote}>
+                        No critical fails, missed red flags, or missed history items were recorded.
+                        </Text>
                     )}
                 </View>
 
                 <View style={caseStyles.resultsCard}>
-                    <Text style={caseStyles.resultsSectionTitle}>Section Scores</Text>
+                    <Text style={caseStyles.resultsSectionTitle}>Section Breakdown</Text>
                     {result.section_scores.map((section) => (
                     <View key={section.section} style={caseStyles.resultsSectionRow}>
                         <Text style={caseStyles.resultsSectionLabel}>{section.label || section.section}</Text>
@@ -262,7 +301,7 @@ export default function AttemptResultScreen() {
                     ))}
                 </View>
 
-                <Text style={caseStyles.resultsSectionTitle}>Criterion Breakdown</Text>
+                <Text style={caseStyles.resultsSectionTitle}>Rubric Breakdown</Text>
                 </View>
             }
             renderItem={({ item }) => (

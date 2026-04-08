@@ -7,10 +7,12 @@ export const caseStyles = StyleSheet.create({
   },
 
   header: {
-    padding: 16,
-    gap: 5,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    gap: 6,
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 2,
   },
 
   avatarWrapper: {
@@ -29,14 +31,14 @@ export const caseStyles = StyleSheet.create({
   },
 
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
   },
   avatarClip: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     overflow: "hidden",
   },
   avatarVideo: {
@@ -49,17 +51,74 @@ export const caseStyles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
+  headerEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    color: COLORS.primary || "#6d28d9",
+    textTransform: "uppercase",
+  },
+  patientNameText: {
+    fontWeight: "700",
+    color: "#1f2937",
+    textAlign: "center",
+  },
 
   subText: {
     opacity: 0.7,
     textAlign: "center",
   },
+  statusChipRow: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+  },
+  statusChip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+  },
+  statusChipPrimary: {
+    backgroundColor: "#ede9fe",
+    borderColor: "#c4b5fd",
+  },
+  statusChipSuccess: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#bbf7d0",
+  },
+  statusChipAttention: {
+    backgroundColor: "#fffbeb",
+    borderColor: "#fde68a",
+  },
+  statusChipMuted: {
+    backgroundColor: "#f9fafb",
+    borderColor: "#e5e7eb",
+  },
+  statusChipText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  statusChipPrimaryText: {
+    color: "#5b21b6",
+  },
+  statusChipSuccessText: {
+    color: "#166534",
+  },
+  statusChipAttentionText: {
+    color: "#92400e",
+  },
+  statusChipMutedText: {
+    color: "#4b5563",
+  },
 
   voiceControlsRow: {
     width: "100%",
-    marginTop: 8,
+    marginTop: 2,
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
 
   voiceToggleButton: {
@@ -125,21 +184,104 @@ export const caseStyles = StyleSheet.create({
     padding: 12,
     gap: 10,
     marginBottom: 12,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#ffffff",
+  },
+
+  resultsHeroCard: {
+    borderWidth: 1,
+    borderColor: "#ddd6fe",
+    backgroundColor: "#faf5ff",
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
   },
 
   resultsScoreRow: {
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+
+  resultsScoreBlock: {
+    flex: 1,
   },
 
   resultsScoreText: {
     fontSize: 28,
     fontWeight: "800",
+    color: "#111827",
   },
 
   resultsPassText: {
     fontWeight: "700",
+  },
+  resultsEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6d28d9",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  resultsThresholdText: {
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  resultsOutcomeBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
+  resultsOutcomeBadgePassed: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#bbf7d0",
+  },
+  resultsOutcomeBadgeFailed: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#fecaca",
+  },
+  resultsOutcomeBadgeText: {
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  resultsOutcomeBadgeTextPassed: {
+    color: "#166534",
+  },
+  resultsOutcomeBadgeTextFailed: {
+    color: "#b91c1c",
+  },
+  resultsSummaryText: {
+    color: "#4b5563",
+    lineHeight: 20,
+  },
+  resultsStatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  resultsStatTile: {
+    minWidth: "47%",
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: "#e9d5ff",
+    borderRadius: 12,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 2,
+  },
+  resultsStatLabel: {
+    color: "#6b7280",
+    fontSize: 12,
+    textTransform: "uppercase",
+    fontWeight: "700",
+  },
+  resultsStatValue: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "800",
   },
 
   resultsPointsText: {
@@ -189,6 +331,10 @@ export const caseStyles = StyleSheet.create({
 
   resultsMissedItem: {
     color: "#6b7280",
+  },
+  resultsPositiveNote: {
+    color: "#166534",
+    fontWeight: "600",
   },
 
   resultsSectionDivider: {
@@ -399,12 +545,25 @@ export const caseStyles = StyleSheet.create({
 
   // Empty chat hint
   chatHintContainer: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#e9d5ff",
+    backgroundColor: "#faf5ff",
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingVertical: 10,
+    gap: 4,
+  },
+
+  chatHintTitle: {
+    color: "#4c1d95",
+    fontWeight: "700",
   },
 
   chatHintText: {
-    color: "#555",
+    color: "#4b5563",
+    lineHeight: 19,
   },
 
   // Done interview button wrapper
