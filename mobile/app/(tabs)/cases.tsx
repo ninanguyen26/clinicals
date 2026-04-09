@@ -238,7 +238,7 @@ export default function HomeScreen() {
                       <Text style={casesStyles.caseCardHintText}>Tap here to start the patient interview.</Text>
                     </View>
                     <View style={casesStyles.caseCardLaunchPill}>
-                      <Text style={casesStyles.caseCardLaunchPillText}>Start</Text>
+                      <Text style={casesStyles.caseCardLaunchPillText}>{hasAttempt ? "Retry" : "Start"}</Text>
                     </View>
                   </View>
 

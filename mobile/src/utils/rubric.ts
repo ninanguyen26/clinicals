@@ -11,3 +11,18 @@ export function statusLabel(status: string): string {
   if (status === "omitted") return "Omitted";
   return "Missed";
 }
+
+export function groupBySection<T extends { section: string }>(
+  criteria: T[]
+): { section: string; data: T[] }[] {
+  const sections: { section: string; data: T[] }[] = [];
+  for (const criterion of criteria) {
+    const last = sections[sections.length - 1];
+    if (last && last.section === criterion.section) {
+      last.data.push(criterion);
+    } else {
+      sections.push({ section: criterion.section, data: [criterion] });
+    }
+  }
+  return sections;
+}

@@ -1,12 +1,12 @@
 import { useCallback, useState, useEffect } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, SectionList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useUserHeaders } from "@/hooks/use-user-headers";
 import { caseStyles } from "../assets/styles/case.styles";
 import { attemptResultStyles } from "../assets/styles/attempt-result.styles";
 import { getItemAsync } from "../src/utils/storage";
-import { statusColor, statusLabel } from "@/src/utils/rubric";
+import { statusColor, statusLabel, groupBySection } from "@/src/utils/rubric";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
@@ -161,192 +161,199 @@ export default function AttemptResultScreen() {
           </Pressable>
         </View>
       ) : result ? (
-        <FlatList
-            data={result.criteria_results}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={caseStyles.resultsFlatListContent}
-            ListHeaderComponent={
-                <View style={caseStyles.resultsHeaderContainer}>
-                <View style={caseStyles.resultsHeroCard}>
-                    <Text style={caseStyles.resultsEyebrow}>Attempt Review</Text>
-                    <View style={caseStyles.resultsScoreRow}>
-                    <View style={caseStyles.resultsScoreBlock}>
-                        <Text style={caseStyles.resultsScoreText}>{result.score}%</Text>
-                        <Text style={caseStyles.resultsThresholdText}>
-                        Passing threshold: {result.passing_score}%
-                        </Text>
-                    </View>
-                    <View
-                        style={[
-                        caseStyles.resultsOutcomeBadge,
-                        result.passed
-                            ? caseStyles.resultsOutcomeBadgePassed
-                            : caseStyles.resultsOutcomeBadgeFailed,
-                        ]}
-                    >
-                        <Text
-                        style={[
-                            caseStyles.resultsOutcomeBadgeText,
-                            result.passed
-                            ? caseStyles.resultsOutcomeBadgeTextPassed
-                            : caseStyles.resultsOutcomeBadgeTextFailed,
-                        ]}
-                        >
-                        {result.passed ? "Passed" : "Needs review"}
-                        </Text>
-                    </View>
-                    </View>
-                    <Text style={caseStyles.resultsSummaryText}>
-                    {result.feedback || "Review the follow-up items below before your next attempt."}
-                    </Text>
+        <SectionList
+          sections={groupBySection(result.criteria_results)}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={caseStyles.resultsFlatListContent}
+          renderSectionHeader={({ section }) => (
+            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                {section.section}
+              </Text>
+            </View>
+          )}
+          ListHeaderComponent={
+              <View style={caseStyles.resultsHeaderContainer}>
+              <View style={caseStyles.resultsHeroCard}>
+                  <Text style={caseStyles.resultsEyebrow}>Attempt Review</Text>
+                  <View style={caseStyles.resultsScoreRow}>
+                  <View style={caseStyles.resultsScoreBlock}>
+                      <Text style={caseStyles.resultsScoreText}>{result.score}%</Text>
+                      <Text style={caseStyles.resultsThresholdText}>
+                      Passing threshold: {result.passing_score}%
+                      </Text>
+                  </View>
+                  <View
+                      style={[
+                      caseStyles.resultsOutcomeBadge,
+                      result.passed
+                          ? caseStyles.resultsOutcomeBadgePassed
+                          : caseStyles.resultsOutcomeBadgeFailed,
+                      ]}
+                  >
+                      <Text
+                      style={[
+                          caseStyles.resultsOutcomeBadgeText,
+                          result.passed
+                          ? caseStyles.resultsOutcomeBadgeTextPassed
+                          : caseStyles.resultsOutcomeBadgeTextFailed,
+                      ]}
+                      >
+                      {result.passed ? "Passed" : "Needs review"}
+                      </Text>
+                  </View>
+                  </View>
+                  <Text style={caseStyles.resultsSummaryText}>
+                  {result.feedback || "Review the follow-up items below before your next attempt."}
+                  </Text>
 
-                    <View style={caseStyles.resultsStatsGrid}>
-                    <View style={caseStyles.resultsStatTile}>
-                        <Text style={caseStyles.resultsStatLabel}>Earned points</Text>
-                        <Text style={caseStyles.resultsStatValue}>
-                        {result.earned_points ?? 0}/{result.available_points ?? 0}
-                        </Text>
-                    </View>
-                    <View style={caseStyles.resultsStatTile}>
-                        <Text style={caseStyles.resultsStatLabel}>Case points</Text>
-                        <Text style={caseStyles.resultsStatValue}>
-                        {result.case_points_awarded ?? 0}
-                        </Text>
-                    </View>
-                    <View style={caseStyles.resultsStatTile}>
-                        <Text style={caseStyles.resultsStatLabel}>Total points</Text>
-                        <Text style={caseStyles.resultsStatValue}>
-                        {result.user_total_points ?? 0}
-                        </Text>
-                    </View>
-                    <View style={caseStyles.resultsStatTile}>
-                        <Text style={caseStyles.resultsStatLabel}>Current level</Text>
-                        <Text style={caseStyles.resultsStatValue}>
-                        {result.user_level ?? 1}
-                        </Text>
-                    </View>
-                    </View>
-                </View>
+                  <View style={caseStyles.resultsStatsGrid}>
+                  <View style={caseStyles.resultsStatTile}>
+                      <Text style={caseStyles.resultsStatLabel}>Earned points</Text>
+                      <Text style={caseStyles.resultsStatValue}>
+                      {result.earned_points ?? 0}/{result.available_points ?? 0}
+                      </Text>
+                  </View>
+                  <View style={caseStyles.resultsStatTile}>
+                      <Text style={caseStyles.resultsStatLabel}>Case points</Text>
+                      <Text style={caseStyles.resultsStatValue}>
+                      {result.case_points_awarded ?? 0}
+                      </Text>
+                  </View>
+                  <View style={caseStyles.resultsStatTile}>
+                      <Text style={caseStyles.resultsStatLabel}>Total points</Text>
+                      <Text style={caseStyles.resultsStatValue}>
+                      {result.user_total_points ?? 0}
+                      </Text>
+                  </View>
+                  <View style={caseStyles.resultsStatTile}>
+                      <Text style={caseStyles.resultsStatLabel}>Current level</Text>
+                      <Text style={caseStyles.resultsStatValue}>
+                      {result.user_level ?? 1}
+                      </Text>
+                  </View>
+                  </View>
+              </View>
 
-                <View style={caseStyles.resultsCard}>
-                    <Text style={caseStyles.resultsSectionTitle}>Priority Follow-Up</Text>
+              <View style={caseStyles.resultsCard}>
+                  <Text style={caseStyles.resultsSectionTitle}>Priority Follow-Up</Text>
 
-                    {result.critical_fails_triggered.length > 0 && (
-                    <View style={caseStyles.resultsCriticalBox}>
-                        <Text style={caseStyles.resultsCriticalTitle}>Critical Fails</Text>
-                        {result.critical_fails_triggered.map((item) => (
-                        <Text key={item} style={caseStyles.resultsCriticalItem}>• {item}</Text>
-                        ))}
-                    </View>
-                    )}
+                  {result.critical_fails_triggered.length > 0 && (
+                  <View style={caseStyles.resultsCriticalBox}>
+                      <Text style={caseStyles.resultsCriticalTitle}>Critical Fails</Text>
+                      {result.critical_fails_triggered.map((item) => (
+                      <Text key={item} style={caseStyles.resultsCriticalItem}>• {item}</Text>
+                      ))}
+                  </View>
+                  )}
 
-                    {result.missed_red_flags.length > 0 && (
-                    <View style={caseStyles.resultsRedFlagBox}>
-                        <Text style={caseStyles.resultsRedFlagTitle}>Missed Red Flags</Text>
-                        {result.missed_red_flags.map((item) => (
-                        <Text key={item} style={caseStyles.resultsRedFlagItem}>• {item}</Text>
-                        ))}
-                    </View>
-                    )}
+                  {result.missed_red_flags.length > 0 && (
+                  <View style={caseStyles.resultsRedFlagBox}>
+                      <Text style={caseStyles.resultsRedFlagTitle}>Missed Red Flags</Text>
+                      {result.missed_red_flags.map((item) => (
+                      <Text key={item} style={caseStyles.resultsRedFlagItem}>• {item}</Text>
+                      ))}
+                  </View>
+                  )}
 
-                    {result.missed_required_questions.length > 0 && (
-                    <View style={caseStyles.resultsMissedBox}>
-                        <Text style={caseStyles.resultsMissedTitle}>Missed History Items</Text>
-                        {result.missed_required_questions.map((item) => (
-                        <Text key={item} style={caseStyles.resultsMissedItem}>• {item}</Text>
-                        ))}
-                    </View>
-                    )}
+                  {result.missed_required_questions.length > 0 && (
+                  <View style={caseStyles.resultsMissedBox}>
+                      <Text style={caseStyles.resultsMissedTitle}>Missed History Items</Text>
+                      {result.missed_required_questions.map((item) => (
+                      <Text key={item} style={caseStyles.resultsMissedItem}>• {item}</Text>
+                      ))}
+                  </View>
+                  )}
 
-                    {result.critical_fails_triggered.length === 0 &&
-                    result.missed_red_flags.length === 0 &&
-                    result.missed_required_questions.length === 0 && (
-                        <Text style={caseStyles.resultsPositiveNote}>
-                        No critical fails, missed red flags, or missed history items were recorded.
-                        </Text>
-                    )}
-                </View>
+                  {result.critical_fails_triggered.length === 0 &&
+                  result.missed_red_flags.length === 0 &&
+                  result.missed_required_questions.length === 0 && (
+                      <Text style={caseStyles.resultsPositiveNote}>
+                      No critical fails, missed red flags, or missed history items were recorded.
+                      </Text>
+                  )}
+              </View>
 
-                <View style={caseStyles.resultsCard}>
-                    <Text style={caseStyles.resultsSectionTitle}>Section Breakdown</Text>
-                    {result.section_scores.map((section) => (
-                    <View key={section.section} style={caseStyles.resultsSectionRow}>
-                        <Text style={caseStyles.resultsSectionLabel}>{section.label || section.section}</Text>
-                        <Text style={caseStyles.resultsSectionPoints}>
-                        {section.earned_points}/{section.available_points}
-                        </Text>
-                    </View>
-                    ))}
-                </View>
+              <View style={caseStyles.resultsCard}>
+                  <Text style={caseStyles.resultsSectionTitle}>Section Breakdown</Text>
+                  {result.section_scores.map((section) => (
+                  <View key={section.section} style={caseStyles.resultsSectionRow}>
+                      <Text style={caseStyles.resultsSectionLabel}>{section.label || section.section}</Text>
+                      <Text style={caseStyles.resultsSectionPoints}>
+                      {section.earned_points}/{section.available_points}
+                      </Text>
+                  </View>
+                  ))}
+              </View>
 
-                <Text style={caseStyles.resultsSectionTitle}>Rubric Breakdown</Text>
-                </View>
-            }
-            renderItem={({ item }) => (
-                <View style={caseStyles.criterionCard}>
-                <View style={caseStyles.criterionRow}>
-                    <Text style={caseStyles.criterionLabel}>{item.label || item.id}</Text>
-                    <Text style={[caseStyles.criterionStatusText, { color: statusColor(item.status) }]}>
-                    {statusLabel(item.status)}
-                    </Text>
-                </View>
-                <Text style={caseStyles.criterionMeta}>
-                    {item.section} • {item.earned_points}/{item.points}
-                </Text>
-                {!!item.rationale && (
-                    <Text style={caseStyles.criterionRationale}>{item.rationale}</Text>
-                )}
-                {Array.isArray(item.evidence) && item.evidence.length > 0 && (
-                    <Text style={caseStyles.criterionEvidence}>
-                    Evidence: {item.evidence.slice(0, 2).join(" | ")}
-                    </Text>
-                )}
-                {!!item.omit_reason && (
-                    <Text style={caseStyles.criterionOmitReason}>Reason: {item.omit_reason}</Text>
-                )}
-                </View>
-            )}
-            ListFooterComponent={
-                <View style={attemptResultStyles.transcriptFooter}>
-                    <Pressable
-                    onPress={() => setShowTranscript((prev) => !prev)}
-                    style={({ pressed }) => [
-                      attemptResultStyles.transcriptToggleButton,
-                      {
-                        backgroundColor: pressed ? "#f3f4f6" : "#f9fafb",
-                        marginBottom: showTranscript ? 12 : 0,
-                      },
-                    ]}
-                    >
-                    <Text style={attemptResultStyles.transcriptToggleText}>
-                        {showTranscript ? "Hide Transcript ▲" : "View Transcript ▼"}
-                    </Text>
-                    </Pressable>
+              <Text style={caseStyles.resultsSectionTitle}>Rubric Breakdown</Text>
+              </View>
+          }
+          renderItem={({ item }) => (
+              <View style={caseStyles.criterionCard}>
+              <View style={caseStyles.criterionRow}>
+                  <Text style={caseStyles.criterionLabel}>{item.label || item.id}</Text>
+                  <Text style={[caseStyles.criterionStatusText, { color: statusColor(item.status) }]}>
+                  {statusLabel(item.status)}
+                  </Text>
+              </View>
+              <Text style={caseStyles.criterionMeta}>
+                  {item.section} • {item.earned_points}/{item.points}
+              </Text>
+              {!!item.rationale && (
+                  <Text style={caseStyles.criterionRationale}>{item.rationale}</Text>
+              )}
+              {Array.isArray(item.evidence) && item.evidence.length > 0 && (
+                  <Text style={caseStyles.criterionEvidence}>
+                  Evidence: {item.evidence.slice(0, 2).join(" | ")}
+                  </Text>
+              )}
+              {!!item.omit_reason && (
+                  <Text style={caseStyles.criterionOmitReason}>Reason: {item.omit_reason}</Text>
+              )}
+              </View>
+          )}
+          ListFooterComponent={
+              <View style={attemptResultStyles.transcriptFooter}>
+                  <Pressable
+                  onPress={() => setShowTranscript((prev) => !prev)}
+                  style={({ pressed }) => [
+                    attemptResultStyles.transcriptToggleButton,
+                    {
+                      backgroundColor: pressed ? "#f3f4f6" : "#f9fafb",
+                      marginBottom: showTranscript ? 12 : 0,
+                    },
+                  ]}
+                  >
+                  <Text style={attemptResultStyles.transcriptToggleText}>
+                      {showTranscript ? "Hide Transcript ▲" : "View Transcript ▼"}
+                  </Text>
+                  </Pressable>
 
-                    {showTranscript && (
-                    <View style={attemptResultStyles.transcriptList}>
-                        {messages.length === 0 ? (
-                        <Text style={attemptResultStyles.transcriptEmptyText}>No messages found.</Text>
-                        ) : (
-                        messages.map((msg, index) => {
-                            const isUser = msg.role === "user";
-                            return (
-                            <View
-                                key={index}
-                                style={[attemptResultStyles.messageBubble, { alignSelf: isUser ? "flex-end" : "flex-start" }]}
-                            >
-                                <Text style={attemptResultStyles.messageSender}>
-                                    {isUser ? "You" : "Patient"}
-                                </Text>
-                                <Text>{msg.content}</Text>
-                            </View>
-                            );
-                        })
-                        )}
-                    </View>
-                    )}
-                </View>
-            }
+                  {showTranscript && (
+                  <View style={attemptResultStyles.transcriptList}>
+                      {messages.length === 0 ? (
+                      <Text style={attemptResultStyles.transcriptEmptyText}>No messages found.</Text>
+                      ) : (
+                      messages.map((msg, index) => {
+                          const isUser = msg.role === "user";
+                          return (
+                          <View
+                              key={index}
+                              style={[attemptResultStyles.messageBubble, { alignSelf: isUser ? "flex-end" : "flex-start" }]}
+                          >
+                              <Text style={attemptResultStyles.messageSender}>
+                                  {isUser ? "You" : "Patient"}
+                              </Text>
+                              <Text>{msg.content}</Text>
+                          </View>
+                          );
+                      })
+                      )}
+                  </View>
+                  )}
+              </View>
+          }
         />
       ) : null}
     </SafeAreaView>

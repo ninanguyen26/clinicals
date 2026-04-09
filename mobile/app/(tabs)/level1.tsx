@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
+  SectionList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,7 +19,7 @@ import { Audio } from "expo-av";
 import { VideoView, useVideoPlayer } from "expo-video";
 import * as FileSystem from "expo-file-system/legacy";
 import { caseStyles } from "../../assets/styles/case.styles";
-import { statusColor, statusLabel } from "@/src/utils/rubric";
+import { statusColor, statusLabel, groupBySection } from "@/src/utils/rubric";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
@@ -1018,10 +1019,17 @@ export default function Level1Screen() {
         </View>
 
         {stage === "results" && submissionResult ? (
-          <FlatList
-            data={submissionResult.criteria_results}
+          <SectionList
+            sections={groupBySection(submissionResult.criteria_results)}
             keyExtractor={(item) => item.id}
             contentContainerStyle={caseStyles.resultsFlatListContent}
+            renderSectionHeader={({ section }) => (
+              <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+                <Text style={{ fontSize: 13, fontWeight: "700", color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  {section.section}
+                </Text>
+              </View>
+            )}
             ListHeaderComponent={
               <View style={caseStyles.resultsHeaderContainer}>
                 <View style={caseStyles.resultsHeroCard}>
