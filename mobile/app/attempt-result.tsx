@@ -6,6 +6,7 @@ import { useUserHeaders } from "@/hooks/use-user-headers";
 import { caseStyles } from "../assets/styles/case.styles";
 import { attemptResultStyles } from "../assets/styles/attempt-result.styles";
 import { getItemAsync } from "../src/utils/storage";
+import { statusColor, statusLabel } from "@/src/utils/rubric";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
@@ -90,20 +91,6 @@ function normalizeSubmissionPayload(payload: any): SubmissionResult {
     missed_red_flags: Array.isArray(payload?.missed_red_flags) ? payload.missed_red_flags : Array.isArray(details?.missed_red_flags) ? details.missed_red_flags : [],
     critical_fails_triggered: Array.isArray(payload?.critical_fails_triggered) ? payload.critical_fails_triggered : Array.isArray(details?.critical_fails_triggered) ? details.critical_fails_triggered : [],
   };
-}
-
-function statusColor(status: string) {
-  if (status === "met") return "#166534";
-  if (status === "partially_met") return "#92400e";
-  if (status === "omitted") return "#6b7280";
-  return "#b91c1c";
-}
-
-function statusLabel(status: string) {
-  if (status === "met") return "Met";
-  if (status === "partially_met") return "Partially met";
-  if (status === "omitted") return "Omitted";
-  return "Missed";
 }
 
 export default function AttemptResultScreen() {

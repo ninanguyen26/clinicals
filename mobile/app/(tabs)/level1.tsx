@@ -18,6 +18,7 @@ import { Audio } from "expo-av";
 import { VideoView, useVideoPlayer } from "expo-video";
 import * as FileSystem from "expo-file-system/legacy";
 import { caseStyles } from "../../assets/styles/case.styles";
+import { statusColor, statusLabel } from "@/src/utils/rubric";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_PREFIX = "/api";
@@ -170,20 +171,6 @@ type SubmissionResult = {
   missed_red_flags: string[];
   critical_fails_triggered: string[];
 };
-
-function statusColor(status: string) {
-  if (status === "met") return "#166534";
-  if (status === "partially_met") return "#92400e";
-  if (status === "omitted") return "#6b7280";
-  return "#b91c1c";
-}
-
-function statusLabel(status: string) {
-  if (status === "met") return "Met";
-  if (status === "partially_met") return "Partially met";
-  if (status === "omitted") return "Omitted";
-  return "Missed";
-}
 
 function stageLabel(stage: "chat" | "hpi" | "results") {
   if (stage === "chat") return "Interview";
