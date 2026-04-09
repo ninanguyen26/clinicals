@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
-import { useUser } from "@clerk/clerk-expo";
+import { useUserHeaders } from "@/hooks/use-user-headers";
 import * as SecureStore from "expo-secure-store";
 import { Audio } from "expo-av";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -126,11 +126,6 @@ type CaseData = {
     student_prompt_variants?: string[];
     patient_chief_complaint_reply?: string;
   };
-  patient_profile?: {
-    first_name?: string;
-    last_name?: string;
-  };
-
 };
 
 type Msg = {
@@ -374,17 +369,7 @@ export default function Level1Screen() {
     }
   };
 
-  const { user } = useUser();
-
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    if (user?.id) headers["x-clerk-user-id"] = user.id;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [user]);
+  const userHeaders = useUserHeaders();
 
   const stopSpeechPlayback = useCallback(async () => {
     const currentSound = soundRef.current;

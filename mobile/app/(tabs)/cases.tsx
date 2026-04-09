@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useClerk, useUser } from "@clerk/clerk-expo";
+import { useUserHeaders } from "@/hooks/use-user-headers";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
@@ -18,6 +19,7 @@ export default function HomeScreen() {
   const { signOut } = useClerk();
   const { user } = useUser();
   const router = useRouter();
+  const userHeaders = useUserHeaders();
   const [signingOut, setSigningOut] = useState(false);
   const [loadingCases, setLoadingCases] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(true);
@@ -40,16 +42,6 @@ export default function HomeScreen() {
   >([]);
   const [points, setPoints] = useState(0);
   const [level, setLevel] = useState(1);
-
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    if (user?.id) headers["x-clerk-user-id"] = user.id;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [user]);
 
   const progressByCaseId = useMemo(
     () => new Map(bestCases.map((entry) => [entry.caseId, entry])),
@@ -251,7 +243,7 @@ export default function HomeScreen() {
                   </View>
 
                   <View style={casesStyles.caseMetaRow}>
-                    {hasAttempt ? (
+                    {caseProgress ? (
                       <>
                         <View style={casesStyles.caseMetaChip}>
                           <Text style={casesStyles.caseMetaChipLabel}>Best score</Text>

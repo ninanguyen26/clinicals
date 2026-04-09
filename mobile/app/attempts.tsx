@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useUser } from "@clerk/clerk-expo";
+import { useUserHeaders } from "@/hooks/use-user-headers";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../src/api/client";
 
@@ -17,21 +17,12 @@ type Attempt = {
 export default function AttemptsScreen() {
   const { caseId } = useLocalSearchParams<{ caseId: string }>();
   const router = useRouter();
-  const { user } = useUser();
+
+  const userHeaders = useUserHeaders();
 
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    if (user?.id) headers["x-clerk-user-id"] = user.id;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [user]);
 
   const loadAttempts = useCallback(async () => {
     if (!caseId) return;

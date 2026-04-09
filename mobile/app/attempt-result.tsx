@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useUser } from "@clerk/clerk-expo";
+import { useUserHeaders } from "@/hooks/use-user-headers";
 import { caseStyles } from "../assets/styles/case.styles";
 import { attemptResultStyles } from "../assets/styles/attempt-result.styles";
 import { getItemAsync } from "../src/utils/storage";
@@ -109,7 +109,8 @@ function statusLabel(status: string) {
 export default function AttemptResultScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const router = useRouter();
-  const { user } = useUser();
+
+  const userHeaders = useUserHeaders();
 
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,16 +118,6 @@ export default function AttemptResultScreen() {
 
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [showTranscript, setShowTranscript] = useState(false);
-
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    if (user?.id) headers["x-clerk-user-id"] = user.id;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [user]);
 
   const loadResult = useCallback(async () => {
     if (!conversationId) return;
