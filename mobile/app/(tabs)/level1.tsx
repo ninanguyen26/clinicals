@@ -929,114 +929,120 @@ export default function Level1Screen() {
       >
         {/* Header */}
         <View style={caseStyles.header}>
-          <View style={caseStyles.avatarWrapper}>
-            <View style={caseStyles.avatarClip}>
-              {shouldPlayTalkingVideo ? (
-                <VideoView
-                  player={avatarVideoPlayer}
-                  style={caseStyles.avatarVideo}
-                  contentFit="cover"
-                  nativeControls={false}
-                  allowsPictureInPicture={false}
-                />
-              ) : (
-                <Image
-                  source={patientImage}
-                  style={caseStyles.avatar}
-                  resizeMode="cover"
-                />
+          <View style={caseStyles.headerMainRow}>
+            <View style={caseStyles.avatarWrapper}>
+              <View style={caseStyles.avatarClip}>
+                {shouldPlayTalkingVideo ? (
+                  <VideoView
+                    player={avatarVideoPlayer}
+                    style={caseStyles.avatarVideo}
+                    contentFit="cover"
+                    nativeControls={false}
+                    allowsPictureInPicture={false}
+                  />
+                ) : (
+                  <Image
+                    source={patientImage}
+                    style={caseStyles.avatar}
+                    resizeMode="cover"
+                  />
+                )}
+              </View>
+            </View>
+
+            <View style={caseStyles.headerTextBlock}>
+              <Text style={caseStyles.headerEyebrow}>Telehealth Visit</Text>
+              <Text style={caseStyles.title}>
+                Level {caseData?.level ?? "?"} Interview
+              </Text>
+
+              {!!caseData?.patient_profile?.first_name && (
+                <Text style={caseStyles.patientNameText}>
+                  Patient: {caseData.patient_profile.first_name} {caseData.patient_profile.last_name}
+                </Text>
+              )}
+
+              {!!caseData?.presenting_info?.chief_complaint && (
+                <Text style={caseStyles.subText}>
+                  Chief complaint: {caseData.presenting_info.chief_complaint}
+                </Text>
+              )}
+
+              <View style={caseStyles.statusChipRow}>
+                <View style={[caseStyles.statusChip, caseStyles.statusChipPrimary]}>
+                  <Text style={[caseStyles.statusChipText, caseStyles.statusChipPrimaryText]}>
+                    Stage: {stageLabel(stage)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    caseStyles.statusChip,
+                    isRecording || transcribing || isSpeaking
+                      ? caseStyles.statusChipAttention
+                      : conversationId
+                      ? caseStyles.statusChipSuccess
+                      : voiceEnabled
+                      ? caseStyles.statusChipMuted
+                      : caseStyles.statusChipMuted,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      caseStyles.statusChipText,
+                      isRecording || transcribing || isSpeaking
+                        ? caseStyles.statusChipAttentionText
+                        : conversationId
+                        ? caseStyles.statusChipSuccessText
+                        : caseStyles.statusChipMutedText,
+                    ]}
+                  >
+                    {isRecording
+                      ? "Recording..."
+                      : transcribing
+                      ? "Transcribing..."
+                      : isSpeaking
+                      ? "Patient speaking..."
+                      : conversationId
+                      ? "Draft saved"
+                      : voiceEnabled
+                      ? "Voice ready"
+                      : "Preparing chart"}
+                  </Text>
+                </View>
+              </View>
+
+              {stage === "chat" && (
+                <View style={caseStyles.voiceControlsRow}>
+                  <Pressable
+                    onPress={async () => {
+                      if (voiceEnabled) {
+                        await stopSpeechPlayback();
+                      }
+                      setVoiceEnabled((prev) => !prev);
+                    }}
+                    style={({ pressed }) => ({
+                      ...caseStyles.voiceToggleButton,
+                      opacity: pressed ? 0.75 : 1,
+                    })}
+                  >
+                    <Text style={caseStyles.voiceToggleText}>
+                      {voiceEnabled ? "Voice: On" : "Voice: Off"}
+                    </Text>
+                  </Pressable>
+
+                  <Text
+                    style={caseStyles.voiceStateText}
+                  >
+                    {voiceEnabled
+                      ? isSpeaking
+                        ? "Patient speaking..."
+                        : "Patient voice ready"
+                      : "Text only mode"}
+                  </Text>
+                </View>
               )}
             </View>
           </View>
-
-          <Text style={caseStyles.headerEyebrow}>Telehealth Visit</Text>
-          <Text style={caseStyles.title}>
-            Level {caseData?.level ?? "?"} Interview
-          </Text>
-
-          {!!caseData?.patient_profile?.first_name && (
-            <Text style={caseStyles.patientNameText}>
-              Patient: {caseData.patient_profile.first_name} {caseData.patient_profile.last_name}
-            </Text>
-          )}
-
-          {!!caseData?.presenting_info?.chief_complaint && (
-            <Text style={caseStyles.subText}>
-              Chief complaint: {caseData.presenting_info.chief_complaint}
-            </Text>
-          )}
-
-          <View style={caseStyles.statusChipRow}>
-            <View style={[caseStyles.statusChip, caseStyles.statusChipPrimary]}>
-              <Text style={[caseStyles.statusChipText, caseStyles.statusChipPrimaryText]}>
-                Stage: {stageLabel(stage)}
-              </Text>
-            </View>
-            <View
-              style={[
-                caseStyles.statusChip,
-                isRecording || transcribing || isSpeaking
-                  ? caseStyles.statusChipAttention
-                  : conversationId
-                  ? caseStyles.statusChipSuccess
-                  : voiceEnabled
-                  ? caseStyles.statusChipMuted
-                  : caseStyles.statusChipMuted,
-              ]}
-            >
-              <Text
-                style={[
-                  caseStyles.statusChipText,
-                  isRecording || transcribing || isSpeaking
-                    ? caseStyles.statusChipAttentionText
-                    : conversationId
-                    ? caseStyles.statusChipSuccessText
-                    : caseStyles.statusChipMutedText,
-                ]}
-              >
-                {isRecording
-                  ? "Recording..."
-                  : transcribing
-                  ? "Transcribing..."
-                  : isSpeaking
-                  ? "Patient speaking..."
-                  : conversationId
-                  ? "Draft saved"
-                  : voiceEnabled
-                  ? "Voice ready"
-                  : "Preparing chart"}
-              </Text>
-            </View>
-          </View>
-
-          {stage === "chat" && (
-            <View style={caseStyles.voiceControlsRow}>
-              <Pressable
-                onPress={async () => {
-                  if (voiceEnabled) {
-                    await stopSpeechPlayback();
-                  }
-                  setVoiceEnabled((prev) => !prev);
-                }}
-                style={({ pressed }) => ({
-                  ...caseStyles.voiceToggleButton,
-                  opacity: pressed ? 0.75 : 1,
-                })}
-              >
-                <Text style={caseStyles.voiceToggleText}>
-                  {voiceEnabled ? "Voice: On" : "Voice: Off"}
-                </Text>
-              </Pressable>
-
-              {voiceEnabled ? (
-                <Text style={caseStyles.voiceStateText}>
-                  {isSpeaking ? "Patient speaking..." : "Patient voice ready"}
-                </Text>
-              ) : (
-                <Text style={caseStyles.voiceStateText}>Text only mode</Text>
-              )}
-            </View>
-          )}
         </View>
 
         {stage === "results" && submissionResult ? (
@@ -1226,7 +1232,7 @@ export default function Level1Screen() {
                     <Text style={caseStyles.messageSenderLabel}>
                       {isUser ? "You" : "Patient"}
                     </Text>
-                    <Text>{item.content}</Text>
+                    <Text style={caseStyles.messageText}>{item.content}</Text>
                   </View>
                 );
               }}

@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { COLORS } from "../../constants/colors";
 
 export const casesStyles = StyleSheet.create({
   // Layout
@@ -36,6 +37,7 @@ export const casesStyles = StyleSheet.create({
   },
   signOutButtonText: {
     fontWeight: "600",
+    color: "#374151",
   },
 
   // Points card
@@ -45,53 +47,67 @@ export const casesStyles = StyleSheet.create({
     paddingBottom: 8,
   },
   pointsCard: {
-    alignSelf: "center",
-    minWidth: 180,
-    borderWidth: 1,
-    borderColor: "#ddd6fe",
-    backgroundColor: "#faf5ff",
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    marginBottom: 16,
-    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    marginBottom: 20,
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  pointsContent: {
+    width: "100%",
   },
   pointsLabel: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: "700",
     color: "#6d28d9",
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
+    textAlign: "left",
   },
   pointsValue: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 54,
+    lineHeight: 58,
+    fontWeight: "900",
+    letterSpacing: -1.5,
     color: "#4c1d95",
     marginTop: 4,
+    textAlign: "left",
+    textShadowColor: "#f7efff",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 0,
   },
   pointsSubText: {
     color: "#6b7280",
-    marginTop: 2,
+    marginTop: 6,
+    fontSize: 18,
+    textAlign: "left",
   },
   pointsProgressText: {
     color: "#4b5563",
-    marginTop: 4,
+    marginTop: 8,
+    fontSize: 19,
     fontWeight: "600",
+    textAlign: "left",
   },
   pointsRetryNote: {
     color: "#6b7280",
-    marginTop: 2,
-    textAlign: "center",
-    fontSize: 12,
+    marginTop: 6,
+    textAlign: "left",
+    fontSize: 15,
+    lineHeight: 20,
   },
 
   // Section heading
   casesTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 4,
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: "800",
+    marginBottom: 8,
   },
   casesSubText: {
     color: "#6b7280",
+    fontSize: 17,
+    lineHeight: 24,
   },
 
   // Error state
@@ -109,6 +125,7 @@ export const casesStyles = StyleSheet.create({
   },
   retryButtonText: {
     fontWeight: "600",
+    color: "#374151",
   },
 
   // Case card
@@ -120,11 +137,11 @@ export const casesStyles = StyleSheet.create({
     overflow: "hidden",
   },
   caseCardPressable: {
-    padding: 14,
-    backgroundColor: "#faf5ff",
+    padding: 18,
+    backgroundColor: "#ffffff",
   },
   caseCardPressablePressed: {
-    backgroundColor: "#f3e8ff",
+    backgroundColor: "#faf5ff",
   },
   caseCardHeaderRow: {
     flexDirection: "row",
@@ -143,10 +160,10 @@ export const casesStyles = StyleSheet.create({
     marginBottom: 6,
   },
   caseCardLevelLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "700",
     color: "#6d28d9",
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
     textTransform: "uppercase",
   },
   caseStatusBadge: {
@@ -181,53 +198,56 @@ export const casesStyles = StyleSheet.create({
     color: "#92400e",
   },
   caseCardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: "800",
     color: "#111827",
   },
   caseCardHintText: {
     color: "#6b7280",
-    marginTop: 4,
-    fontSize: 13,
+    marginTop: 6,
+    fontSize: 16,
+    lineHeight: 22,
   },
   caseCardLaunchPill: {
     borderRadius: 999,
-    backgroundColor: "#6d28d9",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    minWidth: 74,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    minWidth: 92,
     alignItems: "center",
   },
   caseCardLaunchPillText: {
     color: "#ffffff",
+    fontSize: 16,
     fontWeight: "700",
   },
   caseMetaRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
+    gap: 10,
+    marginTop: 16,
   },
   caseMetaChip: {
     borderWidth: 1,
     borderColor: "#e9d5ff",
     backgroundColor: "#ffffff",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    minWidth: 94,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minWidth: 108,
   },
   caseMetaChipLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#6b7280",
     textTransform: "uppercase",
     fontWeight: "700",
-    marginBottom: 2,
+    marginBottom: 4,
   },
   caseMetaChipValue: {
     color: "#111827",
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 15,
   },
   attemptsRow: {
     borderTopWidth: 1,
@@ -235,13 +255,13 @@ export const casesStyles = StyleSheet.create({
     backgroundColor: "#fcfcff",
   },
   attemptsButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
   },
   attemptsButtonText: {
     fontWeight: "600",
     color: "#6b7280",
-    fontSize: 14,
+    fontSize: 16,
   },
 
   // Empty state

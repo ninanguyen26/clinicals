@@ -148,27 +148,29 @@ export default function HomeScreen() {
 
       <View style={casesStyles.pointsSection}>
         <View style={casesStyles.pointsCard}>
-          <Text style={casesStyles.pointsLabel}>
-            TOTAL POINTS
-          </Text>
-          {loadingProgress ? (
-            <ActivityIndicator style={{ marginTop: 8 }} />
-          ) : (
-            <>
-              <Text style={casesStyles.pointsValue}>
-                {points}
-              </Text>
-              <Text style={casesStyles.pointsSubText}>Current level: {level}</Text>
-              <Text style={casesStyles.pointsProgressText}>
-                {completedCaseCount > 0
-                  ? `${completedCaseCount} case${completedCaseCount === 1 ? "" : "s"} completed`
-                  : "No completed cases yet"}
-              </Text>
-              <Text style={casesStyles.pointsRetryNote}>
-                Highest case score is kept when you retry.
-              </Text>
-            </>
-          )}
+          <View style={casesStyles.pointsContent}>
+            <Text style={casesStyles.pointsLabel}>
+              TOTAL POINTS
+            </Text>
+            {loadingProgress ? (
+              <ActivityIndicator style={{ marginTop: 8 }} />
+            ) : (
+              <>
+                <Text style={casesStyles.pointsValue}>
+                  {points}
+                </Text>
+                <Text style={casesStyles.pointsSubText}>Current level: {level}</Text>
+                <Text style={casesStyles.pointsProgressText}>
+                  {completedCaseCount > 0
+                    ? `${completedCaseCount} case${completedCaseCount === 1 ? "" : "s"} completed`
+                    : "No completed cases yet"}
+                </Text>
+                <Text style={casesStyles.pointsRetryNote}>
+                  Highest case score is kept when you retry.
+                </Text>
+              </>
+            )}
+          </View>
         </View>
 
         <Text style={casesStyles.casesTitle}>Cases</Text>

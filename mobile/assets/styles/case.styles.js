@@ -7,12 +7,21 @@ export const caseStyles = StyleSheet.create({
   },
 
   header: {
-    paddingTop: 12,
+    paddingTop: 10,
     paddingHorizontal: 16,
-    paddingBottom: 10,
-    gap: 6,
-    alignItems: "center",
+    paddingBottom: 8,
+    alignItems: "stretch",
     marginBottom: 2,
+  },
+  headerMainRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+  },
+  headerTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    paddingTop: 2,
   },
 
   avatarWrapper: {
@@ -49,7 +58,7 @@ export const caseStyles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "700",
-    textAlign: "center",
+    textAlign: "left",
   },
   headerEyebrow: {
     fontSize: 12,
@@ -57,23 +66,27 @@ export const caseStyles = StyleSheet.create({
     letterSpacing: 0.4,
     color: COLORS.primary || "#6d28d9",
     textTransform: "uppercase",
+    textAlign: "left",
   },
   patientNameText: {
     fontWeight: "700",
     color: "#1f2937",
-    textAlign: "center",
+    textAlign: "left",
+    marginTop: 4,
   },
 
   subText: {
     opacity: 0.7,
-    textAlign: "center",
+    textAlign: "left",
+    marginTop: 4,
   },
   statusChipRow: {
-    width: "100%",
+    width: "auto",
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     gap: 6,
+    marginTop: 8,
   },
   statusChip: {
     borderRadius: 999,
@@ -115,23 +128,26 @@ export const caseStyles = StyleSheet.create({
   },
 
   voiceControlsRow: {
-    width: "100%",
-    marginTop: 2,
+    width: "auto",
+    marginTop: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
-    gap: 4,
+    gap: 8,
   },
 
   voiceToggleButton: {
     borderWidth: 1,
+    borderColor: COLORS.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#ffffff",
   },
 
   voiceToggleText: {
     fontWeight: "700",
-    color: "#1f2937",
+    color: COLORS.primary,
   },
 
   voiceStateText: {
@@ -145,9 +161,9 @@ export const caseStyles = StyleSheet.create({
   },
 
   messageBubble: {
-    maxWidth: "85%",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    maxWidth: "90%",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderRadius: 12,
     marginBottom: 10,
@@ -159,22 +175,29 @@ export const caseStyles = StyleSheet.create({
     borderTopWidth: 1,
     flexDirection: "row",
     gap: 10,
-    alignItems: "center",
+    alignItems: "stretch",
   },
 
   textInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    minHeight: 44,
+    fontSize: 18,
+    lineHeight: 22,
   },
 
   sendButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    minHeight: 44,
     borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
+    justifyContent: "center",
   },
 
   // Results screen
@@ -480,7 +503,7 @@ export const caseStyles = StyleSheet.create({
   },
 
   resumePrimaryButton: {
-    backgroundColor: "#1d4ed8",
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     padding: 12,
     marginBottom: 10,
@@ -502,6 +525,7 @@ export const caseStyles = StyleSheet.create({
 
   resumeSecondaryButtonText: {
     fontWeight: "600",
+    color: "#374151",
   },
 
   // Error / loading states
@@ -541,6 +565,12 @@ export const caseStyles = StyleSheet.create({
   messageSenderLabel: {
     fontWeight: "700",
     marginBottom: 4,
+    fontSize: 17,
+  },
+
+  messageText: {
+    fontSize: 18,
+    lineHeight: 26,
   },
 
   // Empty chat hint
@@ -587,6 +617,8 @@ export const caseStyles = StyleSheet.create({
   // Generic button label
   buttonText: {
     fontWeight: "700",
+    color: "#fff",
+    fontSize: 18,
   },
 
   gradingOverlay: {
